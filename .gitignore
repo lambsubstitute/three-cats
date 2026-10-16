@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+tests/shots/
+art/sheet_*.png
+.DS_Store

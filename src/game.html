@@ -1,0 +1,1588 @@
+<title>Three Cats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one room on an upscaled pixel canvas, with a side panel for the cats and the room's goals.
+   Deliberately a single dark "night-time room" look in both themes. */
+:root {
+  --bg: #120e1c;
+  --panel: #1c1628;
+  --line: #31283f;
+  --fg: #efe6d6;
+  --muted: #a99cb8;
+  --ginger: #f0a04b;
+  --smoke: #a7adc0;
+  --tom: #c9a57a;
+  --good: #7bc96f;
+  --font-display: "Pixelify Sans", "Courier New", monospace;
+  --font-body: "Atkinson Hyperlegible", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.45;
+  padding-inline: 16px;
+  padding-block: 18px 28px;
+  box-sizing: border-box;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+h1 {
+  font-family: var(--font-display); font-weight: 700; font-size: 2rem; margin: 0;
+  letter-spacing: 0.02em; text-wrap: balance;
+}
+h1 .g { color: var(--ginger); } h1 .s { color: var(--smoke); } h1 .t { color: var(--tom); }
+.sub { color: var(--muted); font-size: 0.95rem; }
+.game { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+@media (max-width: 860px) { .game { grid-template-columns: minmax(0, 1fr); } }
+.stage {
+  min-width: 0; position: relative; background: #0d0a15; border: 1px solid var(--line);
+  border-radius: 6px; display: grid; place-items: center; padding: 10px; overflow: hidden;
+}
+canvas { image-rendering: pixelated; image-rendering: crisp-edges; display: block; max-width: 100%; outline: none; }
+canvas:focus { outline: none; }
+canvas:focus-visible { box-shadow: 0 0 0 1px var(--line); }
+.toast {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  background: rgba(18, 14, 28, 0.92); border: 1px solid var(--line); border-radius: 4px;
+  padding: 6px 12px; font-family: var(--font-display); font-size: 1rem; white-space: nowrap;
+  max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis;
+}
+.overlay {
+  position: absolute; inset: 0; display: grid; place-items: center; background: rgba(13, 10, 21, 0.78);
+}
+.overlay .box { text-align: center; display: grid; gap: 10px; padding: 20px; }
+.overlay h2 { font-family: var(--font-display); font-size: 2.2rem; margin: 0; color: var(--good); }
+button {
+  font: inherit; font-family: var(--font-display); font-size: 1rem; color: var(--fg);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 8px 14px; cursor: pointer;
+}
+button:hover { border-color: var(--muted); }
+button:focus-visible { outline: 2px solid var(--ginger); outline-offset: 2px; }
+aside { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: grid; gap: 10px; }
+.label { font-family: var(--font-display); font-size: 0.8rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.cats { display: grid; gap: 8px; }
+.cat {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; align-items: center; text-align: left;
+  padding: 8px; background: transparent; border: 1px solid transparent; font-family: var(--font-body);
+}
+.cat[aria-pressed="true"] { border-color: var(--c); background: rgba(255, 255, 255, 0.04); }
+.cat canvas { width: 44px; height: 44px; }
+.cat .name { font-family: var(--font-display); font-size: 1.1rem; color: var(--c); display: flex; gap: 8px; align-items: baseline; }
+.cat .key { font-size: 0.75rem; color: var(--muted); }
+.cat .ab { color: var(--muted); font-size: 0.88rem; }
+.cat.out { opacity: 0.5; }
+ol.goals { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 8px; }
+ol.goals li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; font-size: 0.92rem; }
+ol.goals li::before { content: ""; width: 10px; height: 10px; margin-top: 5px; border: 2px solid var(--muted); }
+ol.goals li.done { color: var(--muted); text-decoration: line-through; }
+ol.goals li.done::before { background: var(--good); border-color: var(--good); }
+.keys { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; font-size: 0.9rem; color: var(--muted); }
+kbd { font-family: var(--font-display); color: var(--fg); background: #0d0a15; border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; }
+.touch { display: none; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+@media (pointer: coarse) { .touch { display: flex; } }
+.pad { display: grid; grid-template-columns: repeat(3, 52px); grid-template-rows: repeat(3, 52px); gap: 4px; }
+.pad button, .acts button { padding: 0; font-size: 1.3rem; touch-action: none; user-select: none; -webkit-user-select: none; }
+.acts { display: flex; gap: 10px; }
+.acts button { width: 76px; height: 64px; font-size: 1rem; }
+.banner {
+  position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+  font-family: var(--font-display); font-size: 1.5rem; white-space: nowrap;
+  background: rgba(18, 14, 28, 0.9); border: 1px solid var(--line); border-radius: 4px; padding: 6px 16px;
+}
+.panel-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.tally { font-family: var(--font-display); color: var(--fg); font-variant-numeric: tabular-nums; }
+.title {
+  position: absolute; inset: 0; display: grid; justify-items: center; align-items: start;
+  padding: 7% 16px 0; text-align: center;
+  background: linear-gradient(to bottom, rgba(13, 10, 21, 0.92) 0%, rgba(13, 10, 21, 0.78) 42%, rgba(13, 10, 21, 0) 72%);
+}
+.title-box { display: grid; gap: 14px; justify-items: center; max-width: 100%; }
+.kicker { margin: 0; font-family: var(--font-display); font-size: 0.85rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.logo { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: clamp(1.9rem, 5.2vw, 3.4rem); line-height: 1.05; text-wrap: balance; text-shadow: 0 3px 0 #000; }
+.logo .g { color: var(--ginger); } .logo .s { color: var(--smoke); } .logo .t { color: var(--tom); } .logo .amp { color: var(--fg); }
+.menu { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.menu button { font-size: 1.1rem; padding: 10px 18px; }
+.menu button.primary { border-color: var(--ginger); color: var(--ginger); }
+.hint { margin: 0; color: var(--muted); font-size: 0.9rem; }
+#soundBtn { justify-self: start; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1><span class="g">Moe</span>, <span class="s">Joe</span> &amp; <span class="t">Mr Mews</span> <span class="sub" id="roomName">Room 1</span></h1>
+    <span class="sub">Playable prototype, eight rooms. Get all three cats out of each one.</span>
+  </header>
+
+  <div class="game">
+    <div class="stage" id="stage">
+      <canvas id="screen" tabindex="0" aria-label="Game room. Use the arrow keys to move, space to jump, Tab to switch cat."></canvas>
+      <div class="banner" id="banner" hidden></div>
+      <div class="toast" id="toast" hidden></div>
+      <div class="overlay" id="win" hidden>
+        <div class="box">
+          <h2 id="winTitle">All rooms cleared!</h2>
+          <p id="winText">Moe, Joe and Mr Mews made it through. More rooms to come.</p>
+          <div><button id="again" type="button">Back to the title screen</button></div>
+        </div>
+      </div>
+      <div class="title" id="title" hidden>
+        <div class="title-box">
+          <p class="kicker">An isometric puzzle game for three cats</p>
+          <h2 class="logo"><span class="g">Moe</span><span class="amp">,</span> <span class="s">Joe</span> <span class="amp">&amp;</span> <span class="t">Mr&nbsp;Mews</span></h2>
+          <div class="menu">
+            <button type="button" id="continueBtn" class="primary" hidden>Continue</button>
+            <button type="button" id="newBtn">New game</button>
+          </div>
+          <p class="hint" id="titleHint">Press Enter to start</p>
+        </div>
+      </div>
+    </div>
+
+    <aside>
+      <div class="panel">
+        <div class="label">Cats</div>
+        <div class="cats" id="cats"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="label" id="roomLabel">This room</span><span class="tally" id="tally">Fish 0</span></div>
+        <button type="button" id="restart">Restart room</button>
+        <ol class="goals" id="goals"></ol>
+      </div>
+      <div class="panel">
+        <div class="label">Controls</div>
+        <div class="keys">
+          <span><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></span><span>Walk along the floor grid: ↑ heads up-right, → down-right. Press two for a straight line on screen. WASD works too.</span>
+          <span><kbd>Space</kbd></span><span>Jump. Cats can stand on each other.</span>
+          <span><kbd>Shift</kbd> <kbd>X</kbd></span><span>Hold while walking away from a crate to pull it (Mr Mews only)</span>
+          <span><kbd>Tab</kbd> <kbd>1</kbd>–<kbd>3</kbd></span><span>Switch cat</span>
+          <span><kbd>R</kbd></span><span>Restart the room</span>
+          <span><kbd>M</kbd></span><span>Sound on or off</span>
+        </div>
+        <button type="button" id="soundBtn" aria-pressed="true">Sound: on</button>
+      </div>
+      <div class="panel touch">
+        <div class="pad" id="pad">
+          <button type="button" data-k="left" aria-label="Up-left">◤</button><span></span><button type="button" data-k="up" aria-label="Up-right">◥</button>
+          <span></span><span></span><span></span>
+          <button type="button" data-k="down" aria-label="Down-left">◣</button><span></span><button type="button" data-k="right" aria-label="Down-right">◢</button>
+        </div>
+        <div class="acts">
+          <button type="button" data-k="jump">Jump</button>
+          <button type="button" data-k="grab">Pull</button>
+          <button type="button" id="swap">Switch</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+/*ASSETS*/
+</script>
+<script>
+(() => {
+"use strict";
+const T = 12;
+const R = ASSETS.right, U = ASSETS.up, PIX = ASSETS.pix;
+const proj = (x, y, z) => [(x * R[0] + y * R[1] + z * R[2]) / PIX, -(x * U[0] + y * U[1] + z * U[2]) / PIX];
+
+// ---------- images ----------
+const IMG = {};
+function loadAll() {
+  const jobs = [];
+  for (const [k, s] of Object.entries(ASSETS.sprites)) jobs.push([k, s.src]);
+  for (const [k, s] of Object.entries(ASSETS.cats)) jobs.push(["cat_" + k, s.src]);
+  if (ASSETS.dog) jobs.push(["dog", ASSETS.dog.src]);
+  return Promise.all(jobs.map(([k, src]) => new Promise(res => { const im = new Image(); im.onload = () => { IMG[k] = im; res(); }; im.src = src; })));
+}
+
+// ---------- canvas (sized for the biggest room) ----------
+const BG_NAMES = ["bg1", "bg2", "bg3", "bg4", "bg5", "bg6", "bg7", "bg8"];
+const W = Math.max(...BG_NAMES.map(n => ASSETS.sprites[n].w)) + 8;
+const H = Math.max(...BG_NAMES.map(n => ASSETS.sprites[n].h)) + 24;
+let OX = 0, OY = 0;
+function placeRoom(bgName) {
+  const b = ASSETS.sprites[bgName];
+  OX = Math.round((W - b.w) / 2) - b.ox;
+  OY = H - 4 - b.h - b.oy;
+}
+const cv = document.getElementById("screen");
+cv.width = W; cv.height = H;
+const ctx = cv.getContext("2d");
+ctx.imageSmoothingEnabled = false;
+const stage = document.getElementById("stage");
+function fit() {
+  const avail = stage.clientWidth - 22;
+  const s = avail >= W ? Math.floor(avail / W) : avail / W;
+  const scale = Math.min(s, 4);
+  cv.style.width = Math.round(W * scale) + "px";
+  cv.style.height = Math.round(H * scale) + "px";
+}
+new ResizeObserver(fit).observe(stage);
+
+// ---------- cats ----------
+const CATS = {
+  ginger: { name: "Moe", key: "1", color: "var(--ginger)", ability: "Slim and springy. Jumps highest, even off a friend's back.", hx: 5, h: 11, speed: 0.95, jump: 28 },
+  smoke:  { name: "Joe", key: "2", color: "var(--smoke)", ability: "Sleek and quiet. Squeezes through gaps and sneaks past sleepers.", hx: 3.5, h: 10, speed: 0.85, jump: 14 },
+  tom:    { name: "Mr Mews", key: "3", color: "var(--tom)", ability: "Heavy. Pushes and pulls crates, presses plates, makes a handy step.", hx: 6, h: 10, speed: 0.6, jump: 6 },
+};
+const ORDER = ["ginger", "smoke", "tom"];
+const G = 0.32;
+
+// ---------- rooms ----------
+const hasFish = S => S.items.some(it => it.type === "fish" && it.by);
+const allOut = S => ORDER.every(k => S.cats[k].out);
+const ROOMS = [
+  {
+    label: "Room 1", title: "The Store Room", bg: "bg1", size: [96, 96],
+    statics: [
+      { lo: [0, 0, 0], hi: [24, 36, 24], sprite: "ledge" },
+      { lo: [70, 0, 0], hi: [72, 30, 12], sprite: "fence_z12" },
+      { lo: [70, 0, 12], hi: [72, 30, 24], sprite: "fence_z12" },
+      { lo: [70, 0, 24], hi: [82, 30, 26], sprite: "fence_x12" },
+      { lo: [90, 0, 24], hi: [96, 30, 26], sprite: "fence_x6" },
+    ],
+    plates: [{ lo: [12, 0, 48], hi: [24, 1, 60], kind: "heavy" }],
+    buttons: [{ lo: [83, 0, 8], hi: [89, 2.5, 14] }],
+    gate: { lo: [0, 0, 60], hi: [2.4, 30, 84] }, door: { wall: "left", a: 62, b: 82 },
+    items: [{ type: "fish", at: [12, 36, 12] }],
+    crates: [[48, 0, 12], [36, 0, 48]],
+    start: { ginger: [18, 84, 2], smoke: [38, 84, 2], tom: [84, 44, 4] },
+    gateOpen: S => S.plate && S.button,
+    goals: [
+      { text: "Weigh down the red plate. Mr Mews is heavy enough, or he can push a crate onto it. Hold Shift to pull a crate back if it goes too far.", done: S => S.plate },
+      { text: "Press the button behind the fence. Only Joe fits through the gap.", done: S => S.button },
+      { text: "Fetch the fish from the high ledge. Only Moe jumps that high, and she needs something to jump from.", done: hasFish },
+      { text: "Walk all three cats out through the door once the gate lifts.", done: allOut },
+    ],
+  },
+  {
+    label: "Room 2", title: "The Scullery", bg: "bg2", size: [120, 96],
+    statics: [{ lo: [0, 0, 0], hi: [12, 34, 12], sprite: "cupboard" }],
+    plates: [], buttons: [],
+    gate: { lo: [0, 0, 66], hi: [2.4, 30, 90] }, door: { wall: "left", a: 68, b: 88 },
+    items: [{ type: "fish", at: [6, 34, 6] }, { type: "key", at: [8, 0, 30] }],
+    crates: [[84, 0, 24], [96, 0, 48], [84, 0, 72]],
+    start: { ginger: [100, 66, 4], smoke: [112, 72, 4], tom: [108, 86, 4] },
+    water: { x0: 60, x1: 84, z0: 0, z1: 96 },
+    dog: { x: 14, z: 46, r: 26, lo: [3, 0, 39], hi: [25, 8, 53] },
+    gateOpen: S => S.unlocked,
+    goals: [
+      { text: "Build a bridge. Cats won't touch water, so Mr Mews pushes crates into the channel, where they sink into stepping stones. Two in a row gets everyone across.", done: S => bridgeDone(S) },
+      { text: "Fetch the key from beside the sleeping dog. Moe and Mr Mews are too noisy and will wake it. Quiet Joe can sneak in.", done: S => S.items.some(it => it.type === "key" && (it.by || it.used)) },
+      { text: "Get the fish off the tall cupboard. It's too high even for Moe, but she can jump from Mr Mews's back.", done: hasFish },
+      { text: "Bring the key to the gate, then walk all three cats out.", done: allOut },
+    ],
+  },
+  {
+    label: "Room 3", title: "The Laundry", bg: "bg3", size: [120, 96], gateSprite: "gate_x", latch: true,
+    statics: [
+      { lo: [0, 0, 12], hi: [12, 30, 36], sprite: "shelf" },
+      { lo: [12, 0, 24], hi: [24, 16, 36], sprite: "washer" },
+      { lo: [108, 0, 0], hi: [120, 44, 12], sprite: "boiler" },
+    ],
+    plates: [
+      { lo: [0, 30, 18], hi: [12, 31, 30], kind: "light" },
+      { lo: [96, 0, 48], hi: [108, 1, 60], kind: "light" },
+    ],
+    buttons: [],
+    gate: { lo: [84, 0, 0], hi: [108, 30, 2.4] }, door: { wall: "back", a: 86, b: 106 },
+    items: [{ type: "fish", at: [114, 44, 6] }],
+    crates: [[36, 0, 64], [84, 0, 64]],
+    start: { ginger: [10, 87, 6], smoke: [24, 89, 6], tom: [66, 88, 6] },
+    vac: { x0: 7, x1: 113, z: 54, r: 7, start: 30, speed: 0.8 },
+    gateOpen: S => S.latched,
+    goals: [
+      { text: "Get past the robot hoover. It trundles up and down the middle of the room and shoos away any cat it bumps into. A crate in its lane turns it round.", done: S => S.crossed },
+      { text: "Press both blue pads at the same time. One is up on the shelf, which Moe can reach from the washing machine. The other is in the hoover's lane. A crate can hold a pad down too.", done: S => S.latched },
+      { text: "Get the fish off the boiler. It's the tallest perch yet, so build a cat tower: Mr Mews at the bottom, Joe on his back, then Moe on top.", done: hasFish },
+      { text: "Walk all three cats out through the door.", done: allOut },
+    ],
+  },
+  {
+    label: "Room 4", title: "The Bedroom", bg: "bg4", size: [120, 96], gateSprite: "gate_x", latch: true,
+    statics: [
+      { lo: [60, 0, 0], hi: [120, 20, 24], sprite: "landing" },
+      { lo: [0, 0, 24], hi: [12, 46, 48], sprite: "wardrobe" },
+      { lo: [0, 0, 60], hi: [24, 10, 96], sprite: "bed" },
+    ],
+    plates: [{ lo: [64, 20, 6], hi: [76, 21, 18], kind: "heavy" }],
+    buttons: [],
+    gate: { lo: [84, 20, 0], hi: [108, 50, 2.4] }, door: { wall: "back", a: 86, b: 106, y: 20 },
+    items: [{ type: "fish", at: [6, 46, 36] }],
+    crates: [{ x: 48, y: 0, z: 60, kind: "pouffe" }],
+    start: { ginger: [100, 84, 6], smoke: [88, 88, 6], tom: [74, 84, 6] },
+    gateOpen: S => S.latched,
+    goals: [
+      { text: "Get the fish off the wardrobe. It's too high to jump from the floor, but the pouffe is springy: any cat that jumps off it bounces much higher. Mr Mews can push it, or pull it with Shift.", done: hasFish },
+      { text: "Bounce Mr Mews up onto the landing and sit him on the red plate. His weight locks the gate open.", done: S => S.latched },
+      { text: "Get Moe and Joe up there too, then everyone out through the door.", done: allOut },
+    ],
+  },
+  {
+    label: "Room 5", title: "The Cellar", bg: "bg5", size: [96, 96], gateSprite: "gate", dark: true,
+    statics: [
+      { lo: [0, 0, 0], hi: [24, 36, 12], sprite: "winerack" },
+      { lo: [24, 0, 0], hi: [36, 14, 12], sprite: "barrel" },
+    ],
+    plates: [], buttons: [],
+    pits: [[5, 0], [3, 1], [5, 1], [1, 2], [2, 2], [3, 2], [7, 2], [1, 3], [3, 3], [4, 3], [5, 3], [7, 3],
+           [1, 4], [5, 4], [1, 5], [2, 5], [3, 5], [5, 5], [6, 5], [3, 6], [3, 7]],
+    gate: { lo: [0, 0, 12], hi: [2.4, 30, 36] }, door: { wall: "left", a: 14, b: 34 },
+    items: [{ type: "fish", at: [12, 36, 6] }],
+    crates: [[24, 0, 36]],
+    cord: { x: 78, z: 18, y: 27 },
+    start: { ginger: [78, 76, 6], smoke: [90, 76, 6], tom: [84, 88, 6] },
+    gateOpen: S => S.lights,
+    goals: [
+      { text: "It's pitch dark and the floor is full of coal holes. Find the light cord at the back and pull it. It hangs too high for Joe, but Moe can jump for it. Joe sees furthest in the dark.", done: S => S.lights },
+      { text: "Get the fish off the wine rack. Moe can get up there from the barrel.", done: hasFish },
+      { text: "Mr Mews can't jump the holes. Push the crate into the one hole that blocks his way to the door.", done: S => S.filled.length > 0 },
+      { text: "Walk all three cats out through the door.", done: allOut },
+    ],
+  },
+  {
+    label: "Room 6", title: "The Kitchen", bg: "bg6", size: [120, 96], gateSprite: "gate_x",
+    statics: [
+      { lo: [48, 0, 0], hi: [96, 18, 12], sprite: "counter" },
+      { lo: [96, 0, 0], hi: [108, 40, 12], sprite: "fridge" },
+      { lo: [60, 0, 36], hi: [84, 18, 60], sprite: "island" },
+    ],
+    plates: [{ lo: [12, 0, 60], hi: [24, 1, 72], kind: "light" }],
+    buttons: [],
+    balls: [[102, 78]],
+    gate: { lo: [12, 0, 0], hi: [36, 30, 2.4] }, door: { wall: "back", a: 14, b: 34 },
+    items: [{ type: "fish", at: [102, 40, 6] }],
+    crates: [],
+    start: { ginger: [30, 86, 6], smoke: [42, 88, 6], tom: [56, 86, 6] },
+    gateOpen: S => !!(S.plates && S.plates[0]),
+    goals: [
+      { text: "Roll the ball of wool onto the blue pad. Walk into it and it rolls until it hits something, and a cat standing in the way makes a good wall.", done: S => (S.balls || []).some(b => !b.vx && !b.vz && b.x > 12 && b.x < 24 && b.z > 60 && b.z < 72) },
+      { text: "Get the fish off the fridge. Moe can get there from the worktop.", done: hasFish },
+      { text: "Walk all three cats out while the wool holds the pad down.", done: allOut },
+    ],
+  },
+  {
+    label: "Room 7", title: "The Conservatory", bg: "bg7", size: [120, 96], gateSprite: "gate_x",
+    statics: [
+      { lo: [0, 0, 0], hi: [120, 30, 24], sprite: "gallery" },
+      { lo: [0, 0, 24], hi: [12, 44, 36], sprite: "plantshelf" },
+      { lo: [24, 0, 60], hi: [36, 22, 72], sprite: "pot" },
+      { lo: [72, 0, 60], hi: [84, 22, 72], sprite: "pot" },
+    ],
+    plates: [{ lo: [96, 0, 48], hi: [108, 1, 60], kind: "light" }],
+    buttons: [],
+    lift: { lo: [48, 0, 24], hi: [60, 30, 36], top: 30, pad: 0 },
+    gate: { lo: [84, 30, 0], hi: [108, 60, 2.4] }, door: { wall: "back", a: 86, b: 106, y: 30 },
+    items: [{ type: "fish", at: [6, 44, 30] }],
+    crates: [[108, 0, 84]],
+    start: { ginger: [24, 86, 6], smoke: [36, 89, 6], tom: [50, 84, 6] },
+    gateOpen: () => true,
+    goals: [
+      { text: "Ride the lift up to the gallery. It rises while someone holds the blue pad down, so Moe can send Mr Mews up, with Joe on his back.", done: S => S.cats.tom.out || S.cats.tom.y >= 29 },
+      { text: "Moe can't jump all the way up on her own. Get her a crate to jump from. It's wedged in the corner, so Mr Mews will have to pull it out first (Shift).", done: S => S.cats.ginger.out || S.cats.ginger.y >= 29 },
+      { text: "Get the fish off the top of the plant shelf. Moe can reach it from the gallery.", done: hasFish },
+      { text: "Everyone out through the door at the top.", done: allOut },
+    ],
+  },
+  {
+    label: "Room 8", title: "The Attic", bg: "bg8", size: [120, 96], gateSprite: "gate",
+    statics: [
+      { lo: [0, 0, 0], hi: [36, 20, 48], sprite: "loft" },
+      { lo: [108, 0, 0], hi: [120, 40, 12], sprite: "boxes" },
+      { lo: [60, 0, 0], hi: [84, 12, 12], sprite: "trunk" },
+    ],
+    plates: [], buttons: [],
+    gate: { lo: [0, 20, 12], hi: [2.4, 50, 36] }, door: { wall: "left", a: 14, b: 34, y: 20 },
+    items: [{ type: "fish", at: [114, 40, 6] }, { type: "key", at: [106, 0, 88] }],
+    crates: [{ x: 24, y: 0, z: 70, kind: "pouffe" }, [60, 0, 70]],
+    dog: { x: 92, z: 84, r: 24, lo: [81, 0, 77], hi: [103, 8, 91] },
+    vac: { x0: 43, x1: 113, z: 54, r: 7, start: 90, speed: 0.8 },
+    start: { ginger: [8, 84, 6], smoke: [20, 90, 6], tom: [48, 86, 6] },
+    gateOpen: S => S.unlocked,
+    goals: [
+      { text: "Fetch the key from beside the sleeping dog. As before, only Joe is quiet enough.", done: S => S.items.some(it => it.type === "key" && (it.by || it.used)) },
+      { text: "Get the fish off the pile of boxes, across the robot hoover's lane. It's too high for Moe alone: use the springy pouffe, or a cat tower.", done: hasFish },
+      { text: "Get everyone up onto the loft. Moe can jump it, Mr Mews needs the pouffe, and Joe can hop off Mr Mews's back.", done: S => ORDER.every(k => S.cats[k].out || (Math.abs(S.cats[k].y - 20) < 1 && S.cats[k].x < 36 && S.cats[k].z < 48)) },
+      { text: "Joe unlocks the gate with the key, then everyone out.", done: allOut },
+    ],
+  },
+];
+let RM = ROOMS[0];
+
+// holes in the floor for the current room: water (cats refuse to step in) and coal pits (cats fall in)
+function waterTiles() {
+  const w = RM.water, out = [];
+  if (w) for (let x = w.x0; x < w.x1; x += T) for (let z = w.z0; z < w.z1; z += T)
+    out.push({ key: x + "," + z, x, z, type: "water", box: { lo: [x, -12, z], hi: [x + T, 200, z + T] } });
+  for (const [cx, cz] of RM.pits || []) {
+    const x = cx * T, z = cz * T;
+    out.push({ key: x + "," + z, x, z, type: "pit", box: { lo: [x, -12, z], hi: [x + T, 0, z + T] } });
+  }
+  return out;
+}
+const openPitUnder = (x, z, m) => WATER.some(t => t.type === "pit" && !isFilled(t.key) && x + m > t.x && x - m < t.x + T && z + m > t.z && z - m < t.z + T);
+let WATER = [];
+const isFilled = key => S.filled.includes(key);
+function bridgePossible() {
+  const w = RM.water;
+  if (!w) return true;
+  const spare = S.crates.filter(c => !c.sunk).length;
+  for (let z = w.z0; z < w.z1; z += T) {
+    let miss = 0;
+    for (let x = w.x0; x < w.x1; x += T) if (!isFilled(x + "," + z)) miss++;
+    if (miss <= spare) return true;
+  }
+  return false;
+}
+function bridgeDone(S_) {
+  const w = RM.water;
+  if (!w) return false;
+  for (let z = w.z0; z < w.z1; z += T) {
+    let row = true;
+    for (let x = w.x0; x < w.x1; x += T) if (!S_.filled.includes(x + "," + z)) row = false;
+    if (row) return true;
+  }
+  return false;
+}
+
+// ---------- state ----------
+let S;
+function freshRoom(i, fishTotal) {
+  const room = ROOMS[i], cats = {};
+  for (const k of ORDER) {
+    const [x, z, dir] = room.start[k];
+    cats[k] = { x, y: 0, z, vy: 0, dir, frame: 0, walk: 0, ground: true, out: false, carry: null, safe: [x, 0, z] };
+  }
+  const st = {
+    room: i, cats, active: "ginger",
+    crates: room.crates.map(c => Array.isArray(c)
+      ? { x: c[0], y: c[1], z: c[2], vy: 0, sunk: false, kind: "crate", h: T }
+      : { x: c.x, y: c.y || 0, z: c.z, vy: 0, sunk: false, kind: c.kind || "crate", h: c.kind === "pouffe" ? 5 : T }),
+    balls: (room.balls || []).map(([x, z]) => ({ x, z, vx: 0, vz: 0, rot: 0 })),
+    lift: room.lift ? { y: 0, moving: false } : null,
+    lights: false, lightFade: 0,
+    items: room.items.map(it => ({ type: it.type, at: it.at.slice(), by: null, used: false })),
+    plate: false, plates: [], latched: false, crossed: false, button: false, unlocked: false, gate: 0, filled: [], dog: { awake: 0 },
+    vac: room.vac ? { x: room.vac.start, dir: 1, bump: 0 } : null,
+    fishTotal: fishTotal || 0, won: false,
+  };
+  st.gate = room.gateOpen(st) ? 1 : 0;   // some doors simply start open
+  return st;
+}
+
+const catBox = (k, c) => ({ lo: [c.x - CATS[k].hx, c.y, c.z - CATS[k].hx], hi: [c.x + CATS[k].hx, c.y + CATS[k].h, c.z + CATS[k].hx] });
+const crateBox = c => ({ lo: [c.x, c.y, c.z], hi: [c.x + T, c.y + (c.h || T), c.z + T] });
+const ballBox = b => ({ lo: [b.x - 4, 0, b.z - 4], hi: [b.x + 4, 8, b.z + 4] });
+const liftBox = () => ({ lo: RM.lift.lo, hi: [RM.lift.hi[0], S.lift.y, RM.lift.hi[2]] });
+const SPRING = 16;
+const overlap = (a, b) => a.lo[0] < b.hi[0] - 1e-3 && a.hi[0] > b.lo[0] + 1e-3 && a.lo[1] < b.hi[1] - 1e-3 && a.hi[1] > b.lo[1] + 1e-3 && a.lo[2] < b.hi[2] - 1e-3 && a.hi[2] > b.lo[2] + 1e-3;
+const isCatObj = o => !!o && o.carry !== undefined;
+const vacBox = x => ({ lo: [x - RM.vac.r, 0, RM.vac.z - RM.vac.r], hi: [x + RM.vac.r, 4, RM.vac.z + RM.vac.r] });
+// doorways: "left" is the wall along z at x = 0, "back" the wall along x at z = 0
+function atDoor(kk, cc, margin) {
+  const D = RM.door, h = CATS[kk].hx;
+  if (Math.abs(cc.y - (D.y || 0)) > 1.5) return false;
+  return D.wall === "left" ? (cc.z > D.a && cc.z < D.b && cc.x < h + margin) : (cc.x > D.a && cc.x < D.b && cc.z < h + margin);
+}
+function shoo(kk, cc, msg) {
+  toastMsg(msg);
+  const sp = cc.safe || [cc.x, cc.y, cc.z];
+  cc.x = sp[0]; cc.y = sp[1]; cc.z = sp[2]; cc.vy = 0;
+}
+function nearHazard(kk, cc) {
+  if (RM.dog && Math.hypot(cc.x - RM.dog.x, cc.z - RM.dog.z) < RM.dog.r + 2) return true;
+  if (RM.vac && Math.abs(cc.z - RM.vac.z) < RM.vac.r + CATS[kk].hx + 3 && cc.y < 6) return true;
+  if (RM.pits && cc.y < 1 && openPitUnder(cc.x, cc.z, 2.5)) return true;
+  return false;
+}
+
+// everything solid except `self`; each blocker has an id so a cat already overlapping something can still walk free of it
+function blockers(self) {
+  const out = RM.statics.map((s, i) => ({ id: "s" + i, box: s, who: null }));
+  if (S.gate < 0.5) out.push({ id: "gate", box: RM.gate, who: null });
+  if (RM.dog) out.push({ id: "dog", box: RM.dog, who: { dog: true } });
+  if (RM.vac && S.vac && self && !isCatObj(self)) out.push({ id: "vac", box: vacBox(S.vac.x), who: { vac: true } });
+  S.crates.forEach((c, i) => { if (self !== c) out.push({ id: "c" + i, box: crateBox(c), who: { crate: c } }); });
+  (S.balls || []).forEach((b, i) => { if (self !== b) out.push({ id: "b" + i, box: ballBox(b), who: { ball: b } }); });
+  if (RM.lift && S.lift && S.lift.y > 0.01) out.push({ id: "lift", box: liftBox(), who: { lift: true } });
+  for (const k of ORDER) { const c = S.cats[k]; if (!c.out && self !== c) out.push({ id: "k" + k, box: catBox(k, c), who: { cat: k } }); }
+  return out;
+}
+function inBounds(b) {
+  return b.lo[0] >= 0 && b.lo[2] >= 0 && b.hi[0] <= RM.size[0] && b.hi[2] <= RM.size[1] && b.lo[1] >= -1e-3;
+}
+// cats only mind the water under their paws: a small square at the centre of their footprint
+const FEET = 3;
+function waterHit(box) {
+  const cx = (box.lo[0] + box.hi[0]) / 2, cz = (box.lo[2] + box.hi[2]) / 2;
+  for (const t of WATER) {
+    if (t.type !== "water" || isFilled(t.key)) continue;
+    if (cx + FEET > t.x + 1e-3 && cx - FEET < t.x + T - 1e-3 && cz + FEET > t.z + 1e-3 && cz - FEET < t.z + T - 1e-3)
+      return { id: "w" + t.key, box: t.box, who: { water: true } };
+  }
+  return null;
+}
+function hitAny(box, self, skip) {
+  if (!inBounds(box)) return { bounds: true };
+  for (const b of blockers(self)) if ((!skip || !skip.has(b.id)) && overlap(box, b.box)) return b;
+  if (isCatObj(self)) { const w = waterHit(box); if (w && (!skip || !skip.has(w.id))) return w; }
+  return null;
+}
+
+function tryMoveCrate(c, dx, dz) {
+  if (c.sunk) return false;
+  const b = crateBox(c);
+  const nb = { lo: [b.lo[0] + dx, b.lo[1], b.lo[2] + dz], hi: [b.hi[0] + dx, b.hi[1], b.hi[2] + dz] };
+  if (hitAny(nb, c)) return false;
+  c.x += dx; c.z += dz;
+  return true;
+}
+// while a crate is being pushed along one axis, ease it onto the floor grid along the other
+function alignCrate(cr, ax) {
+  const o = ax === "x" ? "z" : "x";
+  const diff = Math.round(cr[o] / T) * T - cr[o];
+  if (Math.abs(diff) < 1e-3) return;
+  const step = Math.sign(diff) * Math.min(Math.abs(diff), 0.2);
+  tryMoveCrate(cr, o === "x" ? step : 0, o === "z" ? step : 0);
+}
+
+// Mr Mews holding Shift drags a crate that is right behind him
+function pullCrate(c, ax, d) {
+  const tb = catBox("tom", c), i = ax === "x" ? 0 : 2, o = ax === "x" ? 2 : 0;
+  for (const cr of S.crates) {
+    if (cr.sunk) continue;
+    const b = crateBox(cr);
+    const gap = d > 0 ? tb.lo[i] - b.hi[i] : b.lo[i] - tb.hi[i];
+    const side = Math.min(tb.hi[o], b.hi[o]) - Math.max(tb.lo[o], b.lo[o]);
+    if (gap >= -0.01 && gap <= Math.abs(d) + 0.6 && side > 3 && b.lo[1] < tb.hi[1] && b.hi[1] > tb.lo[1]) {
+      if (tryMoveCrate(cr, ax === "x" ? d : 0, ax === "z" ? d : 0)) { alignCrate(cr, ax); return true; }
+      return false;
+    }
+  }
+  return false;
+}
+
+// ---------- the dog ----------
+function dogFree(x, z) {
+  const b = { lo: [x - 5, 0, z - 5], hi: [x + 5, 9, z + 5] };
+  if (b.lo[0] < 0 || b.lo[2] < 0 || b.hi[0] > RM.size[0] || b.hi[2] > RM.size[1]) return false;
+  for (const st of RM.statics) if (overlap(b, st)) return false;
+  for (const cr of S.crates) if (!cr.sunk && overlap(b, crateBox(cr))) return false;
+  for (const bl of S.balls || []) if (overlap(b, ballBox(bl))) return false;
+  if (S.gate < 0.5 && overlap(b, RM.gate)) return false;
+  if (RM.lift && S.lift && S.lift.y > 0.01 && overlap(b, liftBox())) return false;
+  for (const t of WATER) if (!isFilled(t.key) && x + 2 > t.x && x - 2 < t.x + T && z + 2 > t.z && z - 2 < t.z + T) return false;
+  return true;
+}
+function dogStep(tx, tz, speed) {
+  const d = S.dog, dx = tx - d.x, dz = tz - d.z, len = Math.hypot(dx, dz);
+  if (len < 0.01) return true;
+  const sx = dx / len * Math.min(speed, len), sz = dz / len * Math.min(speed, len);
+  let mx = 0, mz = 0;
+  if (dogFree(d.x + sx, d.z + sz)) { mx = sx; mz = sz; }
+  else if (Math.abs(sx) > 0.05 && dogFree(d.x + sx, d.z)) mx = sx;
+  else if (Math.abs(sz) > 0.05 && dogFree(d.x, d.z + sz)) mz = sz;
+  if (!mx && !mz) return false;
+  d.x += mx; d.z += mz; d.walk += speed * 0.2;
+  d.dir = ((Math.round(Math.atan2(mz, mx) / (Math.PI / 4)) % 8) + 8) % 8;
+  return true;
+}
+function faceDog(x, z) { const d = S.dog; d.dir = ((Math.round(Math.atan2(z - d.z, x - d.x) / (Math.PI / 4)) % 8) + 8) % 8; }
+function updateDog() {
+  const D = RM.dog, d = S.dog;
+  if (!d.mode) Object.assign(d, { mode: "sleep", x: D.x, z: D.z, dir: 0, t: 0, walk: 0, bark: 0 });
+  const live = ORDER.filter(kk => !S.cats[kk].out && S.cats[kk].y < 12);
+  const fromHome = kk => Math.hypot(S.cats[kk].x - D.x, S.cats[kk].z - D.z);
+  const patch = D.r + 6;                        // the dog won't chase beyond its own patch
+  const intruder = () => {
+    let best = null, bd = 1e9;
+    for (const kk of live) {
+      if (fromHome(kk) > patch) continue;
+      const dd = Math.hypot(S.cats[kk].x - d.x, S.cats[kk].z - d.z);
+      if (dd < bd) { bd = dd; best = kk; }
+    }
+    return best;
+  };
+  const noisyNear = () => live.some(kk => kk !== "smoke" && fromHome(kk) < D.r);
+  if (d.bark > 0) d.bark--;
+  switch (d.mode) {
+    case "sleep":
+      for (const kk of live) if (kk !== "smoke" && fromHome(kk) < D.r) {
+        d.mode = "wake"; d.t = 12; SFX.play("woof"); d.bark = 30;
+        toastMsg(`Woof! ${CATS[kk].name} woke the dog!`);
+        break;
+      }
+      break;
+    case "wake":
+      if (--d.t <= 0) d.mode = "chase";
+      break;
+    case "chase": {
+      const kk = intruder();
+      if (!kk) { d.mode = "return"; break; }
+      const cc = S.cats[kk];
+      dogStep(cc.x, cc.z, 1.45);
+      if (Math.hypot(cc.x - d.x, cc.z - d.z) < 6.5 + CATS[kk].hx) {
+        // bowl the cat back the way it came: towards the last spot it stood out of the dog's hearing
+        const home = cc.safe && Math.hypot(cc.safe[0] - cc.x, cc.safe[2] - cc.z) > 1 ? cc.safe : [cc.x + (cc.x - D.x), 0, cc.z + (cc.z - D.z)];
+        const a = Math.atan2(home[2] - cc.z, home[0] - cc.x);
+        cc.kb = { vx: Math.cos(a) * 3.2, vz: Math.sin(a) * 3.2, t: 14 };
+        if (cc.ground) { cc.vy = 2.4; cc.ground = false; }
+        faceDog(cc.x, cc.z);
+        d.mode = "bark"; d.t = 50; d.bark = 50;
+        SFX.play("woof");
+        toastMsg(`Woof woof! The dog sees ${CATS[kk].name} off.`);
+      }
+      break;
+    }
+    case "bark": {
+      const kk = intruder();
+      if (kk) faceDog(S.cats[kk].x, S.cats[kk].z);
+      if (--d.t <= 0) d.mode = kk ? "chase" : "return";
+      break;
+    }
+    case "return":
+      if (live.some(kk => fromHome(kk) < D.r)) { d.mode = "chase"; break; }
+      if (Math.hypot(d.x - D.x, d.z - D.z) < 1 || !dogStep(D.x, D.z, 0.9)) { d.x = D.x; d.z = D.z; d.mode = "settle"; d.t = 60; }
+      break;
+    case "settle":
+      if (noisyNear()) { d.mode = "chase"; break; }
+      if (--d.t <= 0) d.mode = "sleep";
+      break;
+  }
+  d.awake = d.mode === "sleep" ? 0 : 1;
+}
+
+// whatever a cat is standing on (another cat, a crate, the pouffe, furniture)
+function supportUnder(kk, cc) {
+  const b = catBox(kk, cc), probe = { lo: [b.lo[0], cc.y - 0.6, b.lo[2]], hi: [b.hi[0], cc.y + 0.05, b.hi[2]] };
+  for (const bl of blockers(cc)) if (overlap(probe, bl.box)) return bl;
+  return null;
+}
+let lastScrape = -99;
+function scrape() { if (tick - lastScrape > 16) { lastScrape = tick; SFX.play("push"); } }
+
+function stuckIds(k, c) {
+  const box = catBox(k, c), ids = new Set();
+  for (const b of blockers(c)) if (overlap(box, b.box)) ids.add(b.id);
+  const w = waterHit(box); if (w) ids.add(w.id);
+  return ids;
+}
+
+// walking into water next to a stepping stone eases the cat sideways onto it
+function slideOntoStone(k, c, ax, d, skip) {
+  const o = ax === "x" ? "z" : "x", along = c[ax] + d;
+  let best = null;
+  for (const t of WATER) {
+    if (!isFilled(t.key)) continue;
+    const lo = ax === "x" ? t.x : t.z;
+    if (along + FEET <= lo || along - FEET >= lo + T) continue;
+    const diff = (o === "x" ? t.x : t.z) + T / 2 - c[o];
+    if (Math.abs(diff) < T * 0.75 && (best === null || Math.abs(diff) < Math.abs(best))) best = diff;
+  }
+  if (best === null || Math.abs(best) < 1e-3) return false;
+  const step = Math.sign(best) * Math.min(0.35, Math.abs(best));
+  c[o] += step;
+  if (hitAny(catBox(k, c), c, skip)) { c[o] -= step; return false; }
+  return true;
+}
+
+function moveCat(k, dx, dz) {
+  const c = S.cats[k];
+  const steps = Math.ceil(Math.max(Math.abs(dx), Math.abs(dz)) / 0.25) || 1;
+  let moved = false;
+  for (let i = 0; i < steps; i++) {
+    for (const [ax, d] of [["x", dx / steps], ["z", dz / steps]]) {
+      if (!d) continue;
+      const skip = stuckIds(k, c);
+      c[ax] += d;
+      const hit = hitAny(catBox(k, c), c, skip);
+      if (!hit && k === "tom" && keys.has("grab") && c.ground && pullCrate(c, ax, d)) { c.pulling = true; scrape(); }
+      if (hit) {
+        let ok = false;
+        if (k === "tom" && hit.who && hit.who.crate && c.ground && !hit.who.crate.sunk) {
+          ok = tryMoveCrate(hit.who.crate, ax === "x" ? d : 0, ax === "z" ? d : 0) && !hitAny(catBox(k, c), c, skip);
+          if (ok) { alignCrate(hit.who.crate, ax); scrape(); }
+        }
+        if (hit.who && hit.who.ball && c.ground && !hit.who.ball.vx && !hit.who.ball.vz) {
+          hit.who.ball[ax === "x" ? "vx" : "vz"] = Math.sign(d) * 1.6;
+          SFX.play("roll");
+        }
+        if (!ok) c[ax] -= d; else moved = true;
+        if (!ok && hit.who && hit.who.water) {
+          if (slideOntoStone(k, c, ax, d, skip)) moved = true;
+          else toastMsg(`${CATS[k].name} won't put a paw in the water.`);
+        }
+      } else moved = true;
+    }
+  }
+  return moved;
+}
+
+function fall(obj, boxFn, self) {
+  obj.vy -= G;
+  if (obj.vy < -6) obj.vy = -6;
+  const steps = Math.ceil(Math.abs(obj.vy) / 0.25) || 1;
+  const skip = isCatObj(self) ? stuckIds(ORDER.find(k => S.cats[k] === self), self) : null;
+  obj.ground = false;
+  for (let i = 0; i < steps; i++) {
+    obj.y += obj.vy / steps;
+    if (hitAny(boxFn(), self, skip)) {
+      obj.y -= obj.vy / steps;
+      if (obj.vy < 0) obj.ground = true;
+      obj.vy = 0;
+      break;
+    }
+  }
+}
+
+// ---------- input ----------
+const keys = new Set();
+const KEYMAP = { ArrowUp: "up", KeyW: "up", ArrowDown: "down", KeyS: "down", ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right", Space: "jump", KeyZ: "jump", ShiftLeft: "grab", ShiftRight: "grab", KeyX: "grab" };
+addEventListener("keydown", e => {
+  SFX.unlock();
+  if (e.code === "KeyM") { toggleSound(); return; }
+  if (mode === "title") {
+    if ((e.code === "Enter" || e.code === "Space") && !(e.target.closest && e.target.closest("button"))) { e.preventDefault(); titlePrimary(); }
+    return;
+  }
+  if (e.target.closest && e.target.closest("button") && e.code === "Space") return;
+  const k = KEYMAP[e.code];
+  if (k) { keys.add(k); e.preventDefault(); }
+  if (e.code === "Tab" && document.activeElement === cv) { e.preventDefault(); cycle(e.shiftKey ? -1 : 1); }
+  if (e.code === "Digit1") select("ginger");
+  if (e.code === "Digit2") select("smoke");
+  if (e.code === "Digit3") select("tom");
+  if (e.code === "KeyR") restart();
+});
+addEventListener("keyup", e => { const k = KEYMAP[e.code]; if (k) keys.delete(k); });
+addEventListener("blur", () => keys.clear());
+document.querySelectorAll("[data-k]").forEach(b => {
+  const k = b.dataset.k;
+  b.addEventListener("pointerdown", e => { e.preventDefault(); keys.add(k); b.setPointerCapture(e.pointerId); });
+  const up = () => keys.delete(k);
+  b.addEventListener("pointerup", up); b.addEventListener("pointercancel", up); b.addEventListener("lostpointercapture", up);
+});
+document.getElementById("swap").addEventListener("click", () => cycle(1));
+document.getElementById("again").addEventListener("click", () => showTitle());
+document.getElementById("newBtn").addEventListener("click", () => startGame(false));
+document.getElementById("continueBtn").addEventListener("click", () => startGame(true));
+document.getElementById("soundBtn").addEventListener("click", () => toggleSound());
+addEventListener("pointerdown", () => SFX.unlock());
+document.getElementById("restart").addEventListener("click", () => { restart(); cv.focus(); });
+cv.addEventListener("pointerdown", () => cv.focus());
+
+function select(k) { if (!S.cats[k].out) { if (S.active !== k) SFX.play("meow", k); S.active = k; renderPanel(); } }
+function cycle(step) {
+  const live = ORDER.filter(k => !S.cats[k].out);
+  if (!live.length) return;
+  const i = live.indexOf(S.active);
+  S.active = live[(i + step + live.length) % live.length];
+  if (live.length > 1) SFX.play("meow", S.active);
+  renderPanel();
+}
+function restart() { S = freshRoom(S.room, S.fishTotal); enterRoom(false); }
+
+// ---------- messages ----------
+const toastEl = document.getElementById("toast");
+let toastT = 0, lastMsg = "";
+function toastMsg(m, secs = 2.6) {
+  if (!m) { toastEl.hidden = true; lastMsg = ""; return; }
+  if (m === lastMsg && toastT > 0) return;
+  lastMsg = m; toastEl.textContent = m; toastEl.hidden = false; toastT = secs * 60;
+}
+const bannerEl = document.getElementById("banner");
+let bannerT = 0;
+function banner(text) { bannerEl.textContent = text; bannerEl.hidden = false; bannerEl.style.opacity = 1; bannerT = 150; }
+
+// ---------- effects ----------
+let fx = [];
+function splash(x, z) {
+  for (let i = 0; i < 26; i++) {
+    const a = Math.random() * Math.PI * 2, s = 0.3 + Math.random() * 0.7;
+    fx.push({ x, y: 0, z, vx: Math.cos(a) * s, vy: 1.4 + Math.random() * 1.6, vz: Math.sin(a) * s, life: 40 + Math.random() * 20 });
+  }
+}
+
+// ---------- update ----------
+function footprintOverlap(box, zone) {
+  const w = Math.min(box.hi[0], zone.hi[0]) - Math.max(box.lo[0], zone.lo[0]);
+  const d = Math.min(box.hi[2], zone.hi[2]) - Math.max(box.lo[2], zone.lo[2]);
+  return (w > 0 && d > 0) ? w * d : 0;
+}
+
+function update() {
+  for (const p of fx) { p.x += p.vx; p.y += p.vy; p.z += p.vz; p.vy -= 0.18; p.life--; }
+  fx = fx.filter(p => p.life > 0 && p.y > -4);
+  if (bannerT > 0) { bannerT--; if (bannerT < 30) bannerEl.style.opacity = bannerT / 30; if (bannerT === 0) bannerEl.hidden = true; }
+  if (mode !== "play" || S.won) return;
+  for (const kk of ORDER) {
+    const cc = S.cats[kk];
+    if (cc.out || !cc.kb || cc.kb.t <= 0) continue;
+    moveCat(kk, cc.kb.vx, cc.kb.vz);
+    cc.dir = ((Math.round(Math.atan2(cc.kb.vz, cc.kb.vx) / (Math.PI / 4)) % 8) + 8) % 8;
+    cc.kb.vx *= 0.86; cc.kb.vz *= 0.86; cc.kb.t--;
+  }
+  const k = S.active, c = S.cats[k], P = CATS[k];
+  const stunned = !!(c.kb && c.kb.t > 0);
+  let sx = 0, sy = 0;
+  if (keys.has("up")) sy -= 1; if (keys.has("down")) sy += 1;
+  if (keys.has("left")) sx -= 1; if (keys.has("right")) sx += 1;
+  // Head Over Heels style: each key walks along one floor axis.
+  // Right = +x (down-right on screen), Left = -x, Up = -z (up-right), Down = +z.
+  let dx = sx, dz = sy;
+  const len = stunned ? 0 : Math.hypot(dx, dz);
+  if (len) {
+    dx = dx / len * P.speed; dz = dz / len * P.speed;
+    const md = ((Math.round(Math.atan2(dz, dx) / (Math.PI / 4)) % 8) + 8) % 8;
+    c.pulling = false;
+    if (moveCat(k, dx, dz)) c.walk += P.speed * 0.16;
+    // pulling: keep facing the crate and step backwards
+    c.dir = c.pulling ? (md + 4) % 8 : md;
+    c.frame = c.pulling ? 5 + (3 - (Math.floor(c.walk) % 4)) : 1 + (Math.floor(c.walk) % 4);
+  } else if (stunned) { c.walk += 0.5; c.frame = 1 + (Math.floor(c.walk) % 4); }
+  else { c.frame = 0; c.pulling = false; }
+  // + G/2 corrects for the per-frame steps, so each cat's peak matches its jump height exactly
+  if (keys.has("jump") && c.ground && !stunned) {
+    const sup = supportUnder(k, c), spring = !!(sup && sup.who && sup.who.crate && sup.who.crate.kind === "pouffe");
+    c.vy = Math.sqrt(2 * G * (P.jump + (spring ? SPRING : 0))) + G / 2; c.ground = false;
+    SFX.play(spring ? "boing" : "jump", k);
+  }
+
+  for (const kk of ORDER) { const cc = S.cats[kk]; if (!cc.out) fall(cc, () => catBox(kk, cc), cc); if (kk !== k) cc.frame = cc.kb && cc.kb.t > 0 ? 1 + (tick >> 2) % 4 : 0; }
+  for (const cr of S.crates) if (!cr.sunk) fall(cr, () => crateBox(cr), cr);
+
+  // a nudged ball of wool rolls in a straight line until it bumps into something
+  for (const bl of S.balls || []) {
+    if (!bl.vx && !bl.vz) continue;
+    const steps = Math.ceil(Math.max(Math.abs(bl.vx), Math.abs(bl.vz)) / 0.25);
+    let stopped = false;
+    for (let i = 0; i < steps && !stopped; i++) {
+      bl.x += bl.vx / steps; bl.z += bl.vz / steps;
+      if (hitAny(ballBox(bl), bl)) { bl.x -= bl.vx / steps; bl.z -= bl.vz / steps; stopped = true; }
+    }
+    bl.rot += Math.hypot(bl.vx, bl.vz);
+    if (stopped) { bl.vx = 0; bl.vz = 0; SFX.play("bump"); }
+  }
+
+  // crates pushed over a hole drop in and fill it: stepping stones in water, plugs in coal pits
+  if (WATER.length) {
+    for (const cr of S.crates) {
+      if (cr.sunk || cr.y > 0.5 || cr.kind === "pouffe") continue;
+      const cx = cr.x + T / 2, cz = cr.z + T / 2;
+      const tile = WATER.find(t => !isFilled(t.key) && cx > t.x && cx < t.x + T && cz > t.z && cz < t.z + T);
+      if (!tile) continue;
+      cr.x = tile.x; cr.z = tile.z; cr.y = -T; cr.vy = 0; cr.sunk = true;
+      S.filled.push(tile.key);
+      if (tile.type === "water") {
+        splash(tile.x + T / 2, tile.z + T / 2);
+        SFX.play("splash");
+        if (bridgeDone(S)) toastMsg("Splash! That's a bridge across.");
+        else if (!bridgePossible()) toastMsg("Not enough crates left to finish a bridge. Press R to restart the room.", 7);
+        else toastMsg("Splash! The crate sinks and makes a stepping stone.");
+      } else {
+        SFX.play("thunk");
+        toastMsg("Thunk! The crate drops into the coal hole and plugs it.");
+      }
+    }
+  }
+
+  // stepping onto an open coal pit: down the cat goes, and back out to the last safe spot
+  if (RM.pits) for (const kk of ORDER) {
+    const cc = S.cats[kk];
+    if (cc.out || cc.y > 0.5) continue;
+    if (openPitUnder(cc.x, cc.z, -0.5)) { SFX.play("fall"); shoo(kk, cc, `${CATS[kk].name} tumbles into a coal hole and scrambles back out, all sooty.`); }
+  }
+
+  // the light cord: any cat whose head reaches the bead switches the lights on
+  if (RM.cord && !S.lights) {
+    const C = RM.cord;
+    for (const kk of ORDER) {
+      const cc = S.cats[kk];
+      if (cc.out) continue;
+      const b = catBox(kk, cc);
+      if (C.x > b.lo[0] - 1 && C.x < b.hi[0] + 1 && C.z > b.lo[2] - 1 && C.z < b.hi[2] + 1 && b.hi[1] >= C.y && b.lo[1] <= C.y + 8) {
+        S.lights = true; SFX.play("light");
+        toastMsg(`Click! ${CATS[kk].name} catches the light cord. Lights on, and the gate hums open.`, 4);
+        break;
+      }
+    }
+  }
+  if (RM.dark && S.lights) S.lightFade = Math.min(1, (S.lightFade || 0) + 0.03);
+
+  // plates: heavy ones need Mr Mews or a crate, light pads take any cat or a crate
+  if (RM.plates.length) {
+    const area = T * T;
+    const now = RM.plates.map(PL => {
+      const base = PL.lo[1];
+      if (S.crates.some(cr => !cr.sunk && cr.kind !== "pouffe" && Math.abs(cr.y - base) < 0.5 && footprintOverlap(crateBox(cr), PL) > area * 0.5)) return true;
+      if (PL.kind === "light" && base === 0 && (S.balls || []).some(b => !b.vx && !b.vz && footprintOverlap(ballBox(b), PL) > 12)) return true;
+      for (const kk of ORDER) {
+        const cc = S.cats[kk];
+        if (cc.out || Math.abs(cc.y - base) > 0.6) continue;
+        const ov = footprintOverlap(catBox(kk, cc), PL);
+        if (PL.kind === "heavy" ? (kk === "tom" && ov > 30) : ov > 12) return true;
+      }
+      return false;
+    });
+    const before = S.plates || [];
+    RM.plates.forEach((PL, i) => {
+      if (PL.kind === "heavy" && !now[i] && (k === "ginger" || k === "smoke") && Math.abs(c.y - PL.lo[1]) < 0.6 && footprintOverlap(catBox(k, c), PL) > 20)
+        toastMsg(`${P.name} is too light to press the plate.`);
+      if (now[i] && !before[i]) {
+        SFX.play("plate");
+        if (PL.kind === "heavy" && !RM.latch) toastMsg("The plate clunks down.");
+        else if (RM.latch && RM.plates.length > 1 && !S.latched && !now.every(Boolean)) toastMsg("Ping! One pad down. The other has to be pressed at the same time.");
+      }
+    });
+    S.plates = now; S.plate = !!now[0];
+    if (RM.latch && !S.latched && now.every(Boolean)) {
+      S.latched = true;
+      toastMsg(RM.plates.length > 1 ? "Both pads at once! Clunk. The gate is lifting." : "Clunk! The plate locks down and the gate starts to lift.");
+    }
+  }
+
+  // the lift rises while its pad is held and sinks when it's let go, carrying whoever is on it (and on them)
+  if (RM.lift && S.lift) {
+    const L = RM.lift, want = S.plates && S.plates[L.pad] ? L.top : 0;
+    const dy = Math.max(-0.3, Math.min(0.3, want - S.lift.y));
+    if (Math.abs(dy) > 1e-4) {
+      const riders = ORDER.filter(kk => !S.cats[kk].out && Math.abs(S.cats[kk].y - S.lift.y) < 0.6 && footprintOverlap(catBox(kk, S.cats[kk]), L) > 0);
+      for (let grew = true; grew;) {
+        grew = false;
+        for (const kk of ORDER) {
+          const cc = S.cats[kk];
+          if (cc.out || riders.includes(kk)) continue;
+          if (riders.some(r => Math.abs(cc.y - (S.cats[r].y + CATS[r].h)) < 0.6 && footprintOverlap(catBox(kk, cc), catBox(r, S.cats[r])) > 0)) { riders.push(kk); grew = true; }
+        }
+      }
+      S.lift.y += dy;
+      for (const kk of riders) { const cc = S.cats[kk]; cc.y += dy; cc.vy = 0; cc.ground = true; }
+      if (!S.lift.moving) { S.lift.moving = true; SFX.play("lift"); toastMsg(dy > 0 ? "Whirr! The lift rises." : "The lift sinks back down."); }
+    } else S.lift.moving = false;
+  }
+
+  // buttons (latch)
+  for (const BT of RM.buttons) for (const kk of ORDER) {
+    const cc = S.cats[kk];
+    if (!cc.out && !S.button && cc.y < 1 && footprintOverlap(catBox(kk, cc), BT) > 4) { S.button = true; toastMsg("Click! Something unlocked."); SFX.play("click"); }
+  }
+
+  // items: one thing in the mouth at a time
+  for (const it of S.items) {
+    if (it.by || it.used) continue;
+    for (const kk of ORDER) {
+      const cc = S.cats[kk];
+      const reach = it.type === "key" ? 6 : 8;
+      if (cc.out || Math.abs(cc.x - it.at[0]) >= reach || Math.abs(cc.z - it.at[2]) >= reach || Math.abs(cc.y - it.at[1]) >= 4) continue;
+      if (it.type === "key" && RM.dog && S.dog.mode && S.dog.mode !== "sleep") {   // an awake dog guards its key
+        if (kk === k) toastMsg("Grrr! The dog is guarding the key. Wait till it's asleep again.");
+        continue;
+      }
+      if (cc.carry) { if (kk === k) toastMsg(`${CATS[kk].name}'s mouth is already full.`); continue; }
+      it.by = kk; cc.carry = it.type; SFX.play("pickup");
+      toastMsg(it.type === "fish" ? `${CATS[kk].name} grabbed the fish!` : `${CATS[kk].name} picked up the key.`);
+      break;
+    }
+  }
+
+  // the dog: a noisy cat near the basket wakes it; it jumps out, runs the cat down, barks it off, then goes back to bed
+  if (RM.dog) updateDog();
+
+  // the robot hoover trundles up and down its lane, turning round at walls and crates
+  if (RM.vac && S.vac) {
+    const V = RM.vac, v = S.vac;
+    const nx = v.x + v.dir * V.speed, nb = vacBox(nx);
+    let blocked = nx < V.x0 || nx > V.x1, byCrate = false;
+    if (!blocked) for (const cr of S.crates) if (!cr.sunk && overlap(nb, crateBox(cr))) { blocked = byCrate = true; break; }
+    if (blocked) { v.dir = -v.dir; if (byCrate) { v.bump = 14; SFX.play("bump"); } }
+    else v.x = nx;
+    if (v.bump > 0) v.bump--;
+    const vb = vacBox(v.x);
+    for (const kk of ORDER) {
+      const cc = S.cats[kk];
+      if (!cc.out && overlap(vb, catBox(kk, cc))) { SFX.play("shoo"); shoo(kk, cc, `Beep boop! The robot hoover shoos ${CATS[kk].name} away.`); }
+    }
+    if (!S.crossed) for (const kk of ORDER) {
+      const cc = S.cats[kk];
+      if (!cc.out && cc.ground && cc.z < V.z - V.r - CATS[kk].hx - 1) S.crossed = true;
+    }
+  }
+
+  // remember the last spot each cat stood that was well clear of any hazard
+  for (const kk of ORDER) {
+    const cc = S.cats[kk];
+    if (!cc.out && cc.ground && !nearHazard(kk, cc)) cc.safe = [cc.x, cc.y, cc.z];
+  }
+
+  // a key opens the gate when it's carried up to it
+  if (!S.unlocked) {
+    for (const kk of ORDER) {
+      const cc = S.cats[kk];
+      if (cc.out || cc.carry !== "key") continue;
+      if (atDoor(kk, cc, 6.5)) {
+        S.unlocked = true; cc.carry = null;
+        S.items.forEach(it => { if (it.type === "key") { it.used = true; it.by = null; } });
+        toastMsg(`${CATS[kk].name} turns the key. The gate is lifting.`);
+      }
+    }
+  }
+
+  // gate
+  const want = RM.gateOpen(S) ? 1 : 0;
+  if (want && S.gate === 0) { SFX.play("gate"); if (RM.plates.length === 1 && !RM.latch && !RM.lift) toastMsg("The gate is lifting."); }
+  S.gate += (want - S.gate) * 0.06;
+  if (Math.abs(want - S.gate) < 0.01) S.gate = want;
+  if (S.gate < 0.5 && !want) {
+    for (const kk of ORDER) {
+      const cc = S.cats[kk];
+      if (cc.out || !overlap(catBox(kk, cc), RM.gate)) continue;
+      if (RM.door.wall === "left") cc.x = RM.gate.hi[0] + CATS[kk].hx + 0.1; else cc.z = RM.gate.hi[2] + CATS[kk].hx + 0.1;
+    }
+  }
+
+  // exit
+  if (S.gate > 0.9) {
+    for (const kk of ORDER) {
+      const cc = S.cats[kk];
+      if (!cc.out && atDoor(kk, cc, 2.5)) {
+        if (!hasFish(S)) { toastMsg("Don't leave without the fish!"); continue; }
+        cc.out = true; toastMsg(`${CATS[kk].name} is out.`); SFX.play("out");
+        if (S.active === kk) cycle(1);
+        renderPanel();
+      }
+    }
+  }
+  if (allOut(S)) {
+    const total = S.fishTotal + 1;
+    SFX.play("clear");
+    if (S.room + 1 < ROOMS.length) { S = freshRoom(S.room + 1, total); enterRoom(true); return; }
+    S.won = true; S.fishTotal = total;
+    saveProgress(null);
+    showWin();
+  }
+  updateGoals();
+  if (toastT > 0 && --toastT === 0) toastEl.hidden = true;
+}
+
+// ---------- drawing ----------
+function rectOf(lo, hi) {
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const x of [lo[0], hi[0]]) for (const y of [lo[1], hi[1]]) for (const z of [lo[2], hi[2]]) {
+    const [sx, sy] = proj(x, y, z);
+    x0 = Math.min(x0, sx); y0 = Math.min(y0, sy); x1 = Math.max(x1, sx); y1 = Math.max(y1, sy);
+  }
+  return [x0, y0 - 14, x1, y1];
+}
+function inFront(a, b) {
+  return a.lo[0] >= b.hi[0] - 0.01 || a.lo[2] >= b.hi[2] - 0.01 || a.lo[1] >= b.hi[1] - 0.01;
+}
+function sortDraw(list) {
+  for (const d of list) d.rect = rectOf(d.lo, d.hi);
+  const behind = list.map(() => []);
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+    const a = list[i], b = list[j];
+    if (a.rect[2] < b.rect[0] || b.rect[2] < a.rect[0] || a.rect[3] < b.rect[1] || b.rect[3] < a.rect[1]) continue;
+    if (inFront(a, b)) behind[i].push(j);
+    else if (inFront(b, a)) behind[j].push(i);
+    else {
+      const da = a.lo[0] + a.hi[0] + a.lo[2] + a.hi[2] + (a.lo[1] + a.hi[1]) * 0.5;
+      const db = b.lo[0] + b.hi[0] + b.lo[2] + b.hi[2] + (b.lo[1] + b.hi[1]) * 0.5;
+      if (da >= db) behind[i].push(j); else behind[j].push(i);
+    }
+  }
+  const out = [], state = new Uint8Array(list.length);
+  const visit = i => { if (state[i]) return; state[i] = 1; for (const j of behind[i]) visit(j); out.push(list[i]); };
+  list.forEach((_, i) => visit(i));
+  return out;
+}
+
+function sprite(name, x, y, z, alpha = 1) {
+  const s = ASSETS.sprites[name], [px, py] = proj(x, y, z);
+  if (alpha < 1) ctx.globalAlpha = alpha;
+  ctx.drawImage(IMG[name], Math.round(OX + px + s.ox), Math.round(OY + py + s.oy));
+  ctx.globalAlpha = 1;
+}
+
+// tiny pixel glyphs for the dog
+const GLYPHS = { z: ["1111", "0010", "0100", "1111"], "!": ["1", "1", "1", "0", "1"],
+  W: ["10001", "10001", "10101", "10101", "01010"], O: ["0110", "1001", "1001", "1001", "0110"], F: ["1111", "1000", "1110", "1000", "1000"] };
+function word(str, X, Y, col) { let x = X; for (const ch of str) { glyph(ch, x, Y, col); x += GLYPHS[ch][0].length + 1; } }
+function glyph(ch, X, Y, col) {
+  const g = GLYPHS[ch];
+  ctx.fillStyle = "#1e1528";
+  for (let r = 0; r < g.length; r++) for (let q = 0; q < g[r].length; q++) if (g[r][q] === "1") ctx.fillRect(X + q - 1, Y + r - 1, 3, 3);
+  ctx.fillStyle = col;
+  for (let r = 0; r < g.length; r++) for (let q = 0; q < g[r].length; q++) if (g[r][q] === "1") ctx.fillRect(X + q, Y + r, 1, 1);
+}
+
+// iso ellipse shadow, pre-rendered once per radius
+const shadowCache = {};
+function shadowImg(r) {
+  if (shadowCache[r]) return shadowCache[r];
+  const c = document.createElement("canvas"), pts = [];
+  for (let x = -r; x <= r; x += 0.2) for (let z = -r; z <= r; z += 0.2)
+    if (x * x + z * z <= r * r) pts.push(proj(x, 0, z));
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = Math.floor(Math.min(...xs)), y0 = Math.floor(Math.min(...ys));
+  c.width = Math.ceil(Math.max(...xs)) - x0 + 1; c.height = Math.ceil(Math.max(...ys)) - y0 + 1;
+  const g = c.getContext("2d"); g.fillStyle = "rgba(10,6,20,0.38)";
+  const seen = new Set();
+  for (const [x, y] of pts) { const k = Math.floor(x - x0) + "," + Math.floor(y - y0); if (!seen.has(k)) { seen.add(k); g.fillRect(Math.floor(x - x0), Math.floor(y - y0), 1, 1); } }
+  return (shadowCache[r] = { c, x0, y0 });
+}
+function groundBelow(x, z, y, self) {
+  let top = 0;
+  for (const b of blockers(self)) {
+    const bb = b.box;
+    if (x >= bb.lo[0] && x <= bb.hi[0] && z >= bb.lo[2] && z <= bb.hi[2] && bb.hi[1] <= y + 0.05) top = Math.max(top, bb.hi[1]);
+  }
+  return top;
+}
+function drawShadow(x, z, y, r, self) {
+  const gy = groundBelow(x, z, y, self), s = shadowImg(r), [px, py] = proj(x, gy, z);
+  ctx.drawImage(s.c, Math.round(OX + px + s.x0), Math.round(OY + py + s.y0));
+}
+
+let tick = 0;
+let SHIMMER = [];
+function makeShimmer() {
+  SHIMMER = [];
+  if (!RM.water) return;
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const w = RM.water;
+  for (let i = 0; i < 46; i++) SHIMMER.push({ x: w.x0 + 1 + rnd() * (w.x1 - w.x0 - 2), z: rnd() * (w.z1 - w.z0), sp: 0.04 + rnd() * 0.05 });
+}
+
+function catColour(k) { return getComputedStyle(document.documentElement).getPropertyValue(k === "ginger" ? "--ginger" : k === "smoke" ? "--smoke" : "--tom"); }
+
+function plateSprite(i) {
+  const PL = RM.plates[i], on = !!(S.plates && S.plates[i]) || (PL.kind === "light" && S.latched);
+  return PL.kind === "heavy" ? (on ? "plate_on" : "plate_off") : (on ? "pad_on" : "pad_off");
+}
+
+// title screen: the three cats parade across Room 1, Moe with a fish
+function drawTitle() {
+  placeRoom("bg1");
+  ctx.fillStyle = "#0d0a15"; ctx.fillRect(0, 0, W, H);
+  sprite("bg1", 0, 0, 0);
+  const span = 84, lead = (tick * 0.42) % (span + 60);
+  [["ginger", 0, 1], ["smoke", 16, 0], ["tom", 32, 0]].forEach(([k, gap, set]) => {
+    const t = lead - gap;
+    if (t < 0 || t > span) return;
+    const x = 6 + t, z = 90 - t, A = ASSETS.cats[k];
+    const fade = Math.min(1, t / 10, (span - t) / 10);
+    ctx.globalAlpha = Math.max(0, fade);
+    const sh = shadowImg(CATS[k].hx + 1.5), [sx, sy] = proj(x, 0, z);
+    ctx.drawImage(sh.c, Math.round(OX + sx + sh.x0), Math.round(OY + sy + sh.y0));
+    const frame = 1 + (Math.floor(t * 0.3) % 4);
+    ctx.drawImage(IMG["cat_" + k], (frame + set * A.frames) * A.w, 7 * A.h, A.w, A.h, Math.round(OX + sx + A.ox), Math.round(OY + sy + A.oy), A.w, A.h);
+    ctx.globalAlpha = 1;
+  });
+}
+
+function draw() {
+  if (mode === "title") { drawTitle(); return; }
+  ctx.fillStyle = "#0d0a15"; ctx.fillRect(0, 0, W, H);
+  sprite(RM.bg, 0, 0, 0);
+  RM.plates.forEach((PL, i) => { if (PL.lo[1] === 0) sprite(plateSprite(i), PL.lo[0], 0, PL.lo[2]); });
+  for (const BT of RM.buttons) sprite(S.button ? "btn_on" : "btn_off", BT.lo[0], 0, BT.lo[2]);
+
+  // water ripples drift along the channel; sunk crates sit flush with the surface
+  if (RM.water) {
+    const w = RM.water, len = w.z1 - w.z0;
+    ctx.fillStyle = "rgba(214,240,255,0.55)";
+    for (const s of SHIMMER) {
+      const z = w.z0 + ((s.z + tick * s.sp) % len);
+      const tx = w.x0 + Math.floor((s.x - w.x0) / T) * T, tz = w.z0 + Math.floor((z - w.z0) / T) * T;
+      if (isFilled(tx + "," + tz)) continue;
+      const [a, b] = proj(s.x, -3, z), [c2, d2] = proj(s.x, -3, Math.min(w.z1, z + 2.2));
+      ctx.fillRect(Math.round(OX + a), Math.round(OY + b), 1, 1);
+      ctx.fillRect(Math.round(OX + c2), Math.round(OY + d2), 1, 1);
+    }
+  }
+  for (const cr of S.crates) if (cr.sunk) sprite("crate_sunk", cr.x, -3, cr.z);
+
+  const list = [];
+  RM.statics.forEach(s => list.push({ lo: s.lo, hi: s.hi, draw: () => sprite(s.sprite, s.lo[0], s.lo[1], s.lo[2]) }));
+  RM.plates.forEach((PL, i) => { if (PL.lo[1] > 0) list.push({ lo: PL.lo, hi: [PL.hi[0], PL.lo[1] + 0.01, PL.hi[2]], draw: () => sprite(plateSprite(i), PL.lo[0], PL.lo[1], PL.lo[2]) }); });
+  if (S.gate < 0.98) list.push({ lo: RM.gate.lo, hi: RM.gate.hi, draw: () => sprite(RM.gateSprite || "gate", RM.gate.lo[0], RM.gate.lo[1] + S.gate * 10, RM.gate.lo[2], 1 - S.gate) });
+  if (RM.vac && S.vac) {
+    const v = S.vac, b = vacBox(v.x);
+    list.push({ lo: b.lo, hi: b.hi, draw: () => {
+      const jx = v.bump > 0 ? (v.bump % 4 < 2 ? 0.5 : -0.5) : 0;
+      drawShadow(v.x, RM.vac.z, 0, RM.vac.r + 0.5, null);
+      sprite("hoover", v.x + jx, 0, RM.vac.z);
+      const [lx, ly] = proj(v.x + jx + v.dir * 4.2, 3.4, RM.vac.z);
+      ctx.fillStyle = v.bump > 0 ? "#ff6b5e" : (tick % 40 < 30 ? "#7dff9a" : "#2f6b3f");
+      ctx.fillRect(Math.round(OX + lx), Math.round(OY + ly), 2, 1);
+    }});
+  }
+  for (const cr of S.crates) {
+    if (cr.sunk) continue;
+    const b = crateBox(cr);
+    list.push({ lo: b.lo, hi: b.hi, draw: () => sprite(cr.kind === "pouffe" ? "pouffe" : "crate", cr.x, cr.y, cr.z) });
+  }
+  for (const bl of S.balls || []) {
+    const b = ballBox(bl);
+    list.push({ lo: b.lo, hi: b.hi, draw: () => { drawShadow(bl.x, bl.z, 0, 4.5, bl); sprite("wool" + (Math.floor(bl.rot / 2.5) % 4), bl.x, 0, bl.z); } });
+  }
+  if (RM.lift && S.lift) {
+    const L = RM.lift, y = S.lift.y;
+    list.push({ lo: L.lo, hi: [L.hi[0], Math.max(0.01, y), L.hi[2]], draw: () => {
+      if (y > 1.6) {   // scissor arms on the two faces we can see
+        const col = "#3d4452", x0 = L.lo[0] + 1, z0 = L.lo[2] + 1, x1 = L.hi[0] - 1, z1 = L.hi[2] - 1, ys = [0, (y - 1.5) / 2, y - 1.5];
+        for (let i = 0; i < 2; i++) {
+          line3(x0, ys[i], z1, x1, ys[i + 1], z1, col); line3(x1, ys[i], z1, x0, ys[i + 1], z1, col);
+          line3(x1, ys[i], z0, x1, ys[i + 1], z1, col); line3(x1, ys[i], z1, x1, ys[i + 1], z0, col);
+        }
+      }
+      sprite("liftslab", L.lo[0], Math.max(0, y - 1.5), L.lo[2]);
+    }});
+  }
+  if (RM.cord) {
+    const C = RM.cord;
+    list.push({ lo: [C.x - 0.5, C.y, C.z - 0.5], hi: [C.x + 0.5, 70, C.z + 0.5], draw: () => {
+      const [ax, ay] = proj(C.x, 70, C.z), [bx, by] = proj(C.x, C.y + 2, C.z);
+      ctx.fillStyle = "#b9a78a";
+      for (let yy = Math.max(0, Math.round(OY + ay)); yy <= Math.round(OY + by); yy++) ctx.fillRect(Math.round(OX + ax), yy, 1, 1);
+      ctx.fillStyle = S.lights ? "#8f8068" : "#ffe7a3";
+      ctx.fillRect(Math.round(OX + bx) - 1, Math.round(OY + by), 3, 3);
+    }});
+  }
+  if (RM.dog) {
+    const D = RM.dog, d = S.dog, mode = d.mode || "sleep";
+    const inBasket = mode === "sleep" || mode === "wake" || mode === "settle";
+    list.push({ lo: D.lo, hi: D.hi, draw: () => {
+      if (!inBasket) { sprite("dog_basket", D.x, 0, D.z); return; }
+      const sitting = mode !== "sleep";
+      sprite(sitting ? "dog_awake" : "dog_sleep", D.x, 0, D.z);
+      const [hx, hy] = proj(D.x + 7, sitting ? 16 : 10, D.z);
+      if (sitting) glyph("!", Math.round(OX + hx), Math.round(OY + hy - 4 - (tick % 20 < 10 ? 1 : 0)), "#ffd36a");
+      else for (let i = 0; i < 2; i++) {
+        const t = ((tick + i * 45) % 90) / 90;
+        glyph("z", Math.round(OX + hx + 2 + t * 6 + i * 2), Math.round(OY + hy - t * 12), `rgba(239,230,214,${1 - t})`);
+      }
+      if (d.bark > 0 && (d.bark % 24) > 8) word("WOOF", Math.round(OX + hx - 6), Math.round(OY + hy - 14), "#fff3d6");
+    }});
+    if (!inBasket) {
+      const A = ASSETS.dog;
+      list.push({ lo: [d.x - 5, 0, d.z - 5], hi: [d.x + 5, 9, d.z + 5], draw: () => {
+        drawShadow(d.x, d.z, 0, 6, null);
+        const [px, py] = proj(d.x, 0, d.z);
+        const run = mode === "chase" || mode === "return";
+        const frame = run ? 1 + (Math.floor(d.walk) % 4) : 0;
+        const hop = mode === "bark" && d.bark % 12 < 4 ? 1 : 0;
+        ctx.drawImage(IMG.dog, frame * A.w, d.dir * A.h, A.w, A.h, Math.round(OX + px + A.ox), Math.round(OY + py + A.oy) - hop, A.w, A.h);
+        const [tx, ty] = proj(d.x, 15, d.z);
+        if (mode === "chase") glyph("!", Math.round(OX + tx), Math.round(OY + ty - (tick % 16 < 8 ? 1 : 0)), "#ffd36a");
+        if (d.bark > 0 && (d.bark % 24) > 8) word("WOOF", Math.round(OX + tx - 8), Math.round(OY + ty - 4), "#fff3d6");
+      }});
+    }
+  }
+  for (const it of S.items) {
+    if (it.by || it.used) continue;
+    const [ix, iy, iz] = it.at;
+    if (it.type === "fish") {
+      const fy = iy + 1.5 + Math.sin(tick / 18) * 1.2;
+      list.push({ lo: [ix - 5, iy, iz - 2], hi: [ix + 5, iy + 8, iz + 2],
+        draw: () => { drawShadow(ix, iz, iy, 4, null); sprite("fish", ix, fy, iz); } });
+    } else {
+      const ky = iy + 1 + Math.abs(Math.sin(tick / 22)) * 1.5;
+      list.push({ lo: [ix - 4, iy, iz - 2], hi: [ix + 4, iy + 3, iz + 2],
+        draw: () => { drawShadow(ix, iz, iy, 3, null); sprite("key", ix, ky, iz); } });
+    }
+  }
+  for (const k of ORDER) {
+    const c = S.cats[k];
+    if (c.out) continue;
+    const b = catBox(k, c), A = ASSETS.cats[k];
+    const set = c.carry === "fish" ? 1 : c.carry === "key" ? 2 : 0;
+    list.push({ lo: b.lo, hi: b.hi, draw: () => {
+      drawShadow(c.x, c.z, c.y, CATS[k].hx + 1.5, c);
+      const [px, py] = proj(c.x, c.y, c.z);
+      ctx.drawImage(IMG["cat_" + k], (c.frame + set * A.frames) * A.w, c.dir * A.h, A.w, A.h, Math.round(OX + px + A.ox), Math.round(OY + py + A.oy), A.w, A.h);
+      if (k === S.active) {
+        const [mx, my] = proj(c.x, c.y + CATS[k].h + 7 + Math.abs(Math.sin(tick / 10)) * 2, c.z);
+        const X = Math.round(OX + mx), Y = Math.round(OY + my);
+        ctx.fillStyle = "#1e1528"; ctx.fillRect(X - 4, Y - 1, 9, 5);
+        ctx.fillStyle = catColour(k);
+        ctx.fillRect(X - 3, Y, 7, 1); ctx.fillRect(X - 2, Y + 1, 5, 1); ctx.fillRect(X - 1, Y + 2, 3, 1); ctx.fillRect(X, Y + 3, 1, 1);
+      }
+    }});
+  }
+  for (const d of sortDraw(list)) d.draw();
+
+  ctx.fillStyle = "#d8f0ff";
+  for (const p of fx) {
+    const [a, b] = proj(p.x, p.y, p.z);
+    ctx.fillRect(Math.round(OX + a), Math.round(OY + b), 1, 1);
+  }
+  if (RM.dark && (S.lightFade || 0) < 1) drawDark();
+}
+
+// darkness: a black sheet with pools of light cut out around each cat (Joe sees furthest)
+const darkCv = document.createElement("canvas"); darkCv.width = W; darkCv.height = H;
+const dctx = darkCv.getContext("2d");
+function drawDark() {
+  dctx.globalCompositeOperation = "source-over";
+  dctx.clearRect(0, 0, W, H);
+  dctx.fillStyle = `rgba(4, 3, 10, ${0.96 * (1 - (S.lightFade || 0))})`;
+  dctx.fillRect(0, 0, W, H);
+  dctx.globalCompositeOperation = "destination-out";
+  dctx.fillStyle = "#000";
+  const pool = (x, y, z, r) => {
+    const [sx, sy] = proj(x, y, z);
+    for (const [f, a] of [[1, 0.45], [0.78, 0.6], [0.56, 1]]) {
+      dctx.globalAlpha = a;
+      dctx.beginPath(); dctx.ellipse(OX + sx, OY + sy, 1.8 * r * f, 1.15 * r * f, 0, 0, Math.PI * 2); dctx.fill();
+    }
+    dctx.globalAlpha = 1;
+  };
+  for (const k of ORDER) { const c = S.cats[k]; if (!c.out) pool(c.x, c.y + 4, c.z, k === "smoke" ? 34 : 17); }
+  if (RM.cord && !S.lights) pool(RM.cord.x, RM.cord.y + 2, RM.cord.z, 3 + Math.sin(tick / 15));
+  for (const it of S.items) if (!it.by && !it.used) pool(it.at[0], it.at[1] + 3, it.at[2], 3.5);
+  dctx.globalCompositeOperation = "source-over";
+  ctx.drawImage(darkCv, 0, 0);
+}
+
+function line3(ax, ay, az, bx, by, bz, col) {
+  const [x0, y0] = proj(ax, ay, az), [x1, y1] = proj(bx, by, bz);
+  pixLine(Math.round(OX + x0), Math.round(OY + y0), Math.round(OX + x1), Math.round(OY + y1), col);
+}
+function pixLine(x0, y0, x1, y1, col) {
+  ctx.fillStyle = col;
+  const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1, dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  for (let n = 0; n < 2000; n++) {
+    ctx.fillRect(x0, y0, 1, 1);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+
+// ---------- side panel ----------
+const catsEl = document.getElementById("cats");
+const portraits = {};
+for (const k of ORDER) {
+  const P = CATS[k];
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "cat"; b.style.setProperty("--c", P.color);
+  b.innerHTML = `<canvas width="44" height="44"></canvas><span><span class="name">${P.name}<span class="key">${P.key}</span></span><span class="ab">${P.ability}</span></span>`;
+  b.addEventListener("click", () => { select(k); cv.focus(); });
+  catsEl.appendChild(b);
+  portraits[k] = b;
+}
+function drawPortraits() {
+  for (const k of ORDER) {
+    const g = portraits[k].querySelector("canvas").getContext("2d"), A = ASSETS.cats[k];
+    g.imageSmoothingEnabled = false; g.clearRect(0, 0, 44, 44);
+    const sc = Math.min(44 / A.w, 44 / A.h);
+    g.drawImage(IMG["cat_" + k], 0, 0, A.w, A.h, (44 - A.w * sc) / 2, (44 - A.h * sc) / 2, A.w * sc, A.h * sc);
+  }
+}
+function renderPanel() {
+  for (const k of ORDER) {
+    portraits[k].setAttribute("aria-pressed", String(S.active === k));
+    portraits[k].classList.toggle("out", S.cats[k].out);
+    portraits[k].querySelector(".ab").textContent = S.cats[k].out ? "Out through the door." : CATS[k].ability;
+  }
+}
+const goalsEl = document.getElementById("goals");
+let goalEls = [];
+function renderGoals() {
+  goalsEl.innerHTML = "";
+  goalEls = RM.goals.map(g => { const li = document.createElement("li"); li.textContent = g.text; goalsEl.appendChild(li); return li; });
+}
+function updateGoals() {
+  RM.goals.forEach((g, i) => goalEls[i].classList.toggle("done", !!g.done(S)));
+  document.getElementById("tally").textContent = "Fish " + (S.fishTotal + (hasFish(S) ? 1 : 0));
+}
+function showWin() {
+  document.getElementById("winTitle").textContent = `All ${ROOMS.length} rooms cleared!`;
+  document.getElementById("winText").textContent = `Moe, Joe and Mr Mews made it through the whole house with ${S.fishTotal} fish between them.`;
+  document.getElementById("win").hidden = false;
+}
+
+function enterRoom(announce = true) {
+  RM = ROOMS[S.room];
+  WATER = waterTiles();
+  placeRoom(RM.bg);
+  makeShimmer();
+  fx = [];
+  toastMsg("");
+  document.getElementById("roomName").textContent = `${RM.label} · ${RM.title}`;
+  document.getElementById("roomLabel").textContent = `${RM.label} · ${RM.title}`;
+  document.getElementById("win").hidden = !S.won;
+  renderGoals(); updateGoals(); renderPanel();
+  if (announce) banner(`${RM.label} · ${RM.title}`);
+  if (mode === "play" && !S.won) saveProgress({ room: S.room, fish: S.fishTotal });
+}
+
+// ---------- saved progress (this browser only) ----------
+const SAVE_KEY = "moe-joe-mrmews-save";
+function saveProgress(v) {
+  try { if (v) localStorage.setItem(SAVE_KEY, JSON.stringify(v)); else localStorage.removeItem(SAVE_KEY); } catch (e) {}
+}
+function loadProgress() {
+  try {
+    const v = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
+    if (v && Number.isInteger(v.room) && v.room > 0 && v.room < ROOMS.length) return v;
+  } catch (e) {}
+  return null;
+}
+
+// ---------- title screen ----------
+let mode = "play";
+const titleEl = document.getElementById("title");
+function showTitle() {
+  mode = "title";
+  S = freshRoom(0, 0);
+  enterRoom(false);
+  bannerEl.hidden = true;
+  document.getElementById("win").hidden = true;
+  const sv = loadProgress(), cont = document.getElementById("continueBtn");
+  cont.hidden = !sv;
+  if (sv) cont.textContent = `Continue · ${ROOMS[sv.room].label}, ${ROOMS[sv.room].title}`;
+  document.getElementById("newBtn").classList.toggle("primary", !sv);
+  document.getElementById("titleHint").textContent = sv ? "Press Enter to carry on where you left off" : "Press Enter to start";
+  titleEl.hidden = false;
+  (sv ? cont : document.getElementById("newBtn")).focus({ preventScroll: true });
+}
+function titlePrimary() { startGame(!!loadProgress()); }
+function startGame(fromSave) {
+  SFX.unlock();
+  const sv = fromSave ? loadProgress() : null;
+  S = sv ? freshRoom(sv.room, sv.fish || 0) : freshRoom(0, 0);
+  mode = "play";
+  titleEl.hidden = true;
+  enterRoom(true);
+  SFX.play("start");
+  cv.focus({ preventScroll: true });
+}
+function toggleSound() {
+  SFX.unlock();
+  const m = SFX.toggle();
+  const b = document.getElementById("soundBtn");
+  b.textContent = m ? "Sound: off" : "Sound: on";
+  b.setAttribute("aria-pressed", String(!m));
+  toastMsg(m ? "Sound off" : "Sound on", 1.2);
+}
+
+// ---------- sound: small synthesised effects, no files ----------
+const SFX = (() => {
+  let ac = null, out = null, muted = false, noiseBuf = null;
+  try { muted = localStorage.getItem("moe-joe-mrmews-muted") === "1"; } catch (e) {}
+  function unlock() {
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      try { ac = new AC(); } catch (e) { return; }
+      out = ac.createGain(); out.gain.value = 0.3; out.connect(ac.destination);
+    }
+    if (ac.state === "suspended") ac.resume().catch(() => {});
+  }
+  function tone(f, dur, o = {}) {
+    const t0 = ac.currentTime + (o.delay || 0), osc = ac.createOscillator(), g = ac.createGain();
+    osc.type = o.type || "square";
+    osc.frequency.setValueAtTime(f, t0);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t0 + dur);
+    const v = o.vol ?? 0.15;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(v, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(g); g.connect(out); osc.start(t0); osc.stop(t0 + dur + 0.03);
+  }
+  function noise(dur, o = {}) {
+    if (!noiseBuf) {
+      noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const t0 = ac.currentTime + (o.delay || 0), src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = noiseBuf;
+    f.type = o.filter || "lowpass"; f.Q.value = o.q || 0.8;
+    f.frequency.setValueAtTime(o.freq || 1200, t0);
+    if (o.to) f.frequency.exponentialRampToValueAtTime(o.to, t0 + dur);
+    const v = o.vol ?? 0.2;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(v, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f); f.connect(g); g.connect(out); src.start(t0); src.stop(t0 + dur + 0.03);
+  }
+  const MEOW = { ginger: 820, smoke: 620, tom: 420 };
+  const FX = {
+    meow: k => { const f = MEOW[k]; tone(f * 0.78, 0.1, { type: "triangle", to: f, vol: 0.2 }); tone(f, 0.26, { type: "triangle", to: f * 0.6, vol: 0.2, delay: 0.09 }); },
+    jump: k => tone(k === "tom" ? 200 : 300, 0.13, { to: k === "tom" ? 320 : 640, vol: 0.09 }),
+    push: () => noise(0.1, { freq: 420, vol: 0.12 }),
+    splash: () => { noise(0.55, { freq: 2600, to: 280, vol: 0.3 }); tone(170, 0.2, { type: "sine", to: 55, vol: 0.18 }); },
+    pickup: () => [660, 880, 1320].forEach((f, i) => tone(f, 0.09, { vol: 0.08, delay: i * 0.06 })),
+    plate: () => { tone(150, 0.13, { to: 85, vol: 0.13 }); noise(0.06, { freq: 900, vol: 0.08 }); },
+    click: () => tone(1250, 0.04, { vol: 0.08 }),
+    gate: () => [392, 494, 587, 784].forEach((f, i) => tone(f, 0.15, { type: "triangle", vol: 0.15, delay: i * 0.1 })),
+    woof: () => { tone(230, 0.12, { type: "sawtooth", to: 140, vol: 0.14 }); tone(210, 0.16, { type: "sawtooth", to: 120, vol: 0.14, delay: 0.19 }); },
+    shoo: () => { tone(880, 0.07, { vol: 0.08 }); tone(660, 0.1, { vol: 0.08, delay: 0.08 }); noise(0.22, { filter: "bandpass", freq: 900, q: 4, vol: 0.14, delay: 0.05 }); },
+    bump: () => tone(110, 0.08, { vol: 0.05 }),
+    out: () => { tone(988, 0.08, { vol: 0.08 }); tone(1319, 0.14, { vol: 0.08, delay: 0.07 }); },
+    clear: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i === 5 ? 0.42 : 0.12, { vol: 0.1, delay: i * 0.11 })),
+    start: () => [392, 523, 659].forEach((f, i) => tone(f, 0.1, { vol: 0.1, delay: i * 0.08 })),
+    boing: () => { tone(200, 0.28, { type: "triangle", to: 900, vol: 0.14 }); tone(400, 0.2, { type: "sine", to: 1200, vol: 0.06, delay: 0.04 }); },
+    thunk: () => { tone(130, 0.16, { to: 60, vol: 0.15 }); noise(0.14, { freq: 500, vol: 0.14 }); },
+    fall: () => tone(620, 0.4, { type: "triangle", to: 110, vol: 0.12 }),
+    light: () => { tone(1400, 0.03, { vol: 0.1 }); [523, 659, 784].forEach((f, i) => tone(f, 0.5, { type: "triangle", vol: 0.07, delay: 0.05 + i * 0.03 })); },
+    lift: () => tone(90, 0.6, { type: "sawtooth", to: 150, vol: 0.05 }),
+    roll: () => noise(0.18, { freq: 700, vol: 0.06 }),
+  };
+  return {
+    unlock,
+    get muted() { return muted; },
+    toggle() { muted = !muted; try { localStorage.setItem("moe-joe-mrmews-muted", muted ? "1" : "0"); } catch (e) {} return muted; },
+    play(name, ...args) { if (muted || !ac || ac.state !== "running") return; try { FX[name](...args); } catch (e) {} },
+  };
+})();
+
+// ---------- loop ----------
+function start(data) {
+  const hash = location.hash || "", jump = hash.match(/room(\d)/);
+  let resume = false;
+  if (jump && ROOMS[+jump[1] - 1]) { S = freshRoom(+jump[1] - 1, +jump[1] - 1); mode = "play"; }  // e.g. #room3 goes straight to the Laundry
+  else if (data && data.state && typeof data.state.room === "number") {
+    S = data.state; mode = data.mode || "play"; resume = true;
+    for (const cr of S.crates || []) { if (!cr.kind) cr.kind = "crate"; if (!cr.h) cr.h = cr.kind === "pouffe" ? 5 : T; }
+    if (!S.balls) S.balls = [];
+  }
+  else { S = freshRoom(0, 0); mode = "title"; }
+  if (hash.includes("test")) window.__cats = { get S() { return S; }, select, get mode() { return mode; } };
+  window.claude?.hot?.snapshot?.(() => ({ state: S, mode }));
+  const b = document.getElementById("soundBtn");
+  b.textContent = SFX.muted ? "Sound: off" : "Sound: on"; b.setAttribute("aria-pressed", String(!SFX.muted));
+  loadAll().then(() => {
+    fit(); drawPortraits();
+    if (mode === "title") showTitle();
+    else { enterRoom(!resume); if (S.won) showWin(); }
+    if (mode === "play") cv.focus({ preventScroll: true });
+    let last = performance.now(), acc = 0;
+    const frame = now => {
+      acc += Math.min(100, now - last); last = now;
+      while (acc >= 1000 / 60) { update(); tick++; acc -= 1000 / 60; }
+      draw();
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  });
+}
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
