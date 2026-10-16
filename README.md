@@ -9,11 +9,11 @@ An isometric puzzle game for three cats, in the spirit of *Head Over Heels* and 
 
 ## Play
 
-Open `index.html` in a browser. It's a single self-contained page, so no server or install is needed.
-
-To play it online, turn on GitHub Pages for this repository (Settings → Pages → deploy from the `main` branch, root folder). Pages works on public repositories on any plan, or on private ones with GitHub Pro or a paid organisation plan.
+Play it online at **https://lambsubstitute.github.io/three-cats/**, or open `index.html` in a browser. It's a single self-contained page, so no server or install is needed.
 
 Progress is saved in your browser, so the title screen offers **Continue** from the last room you reached. To jump straight to a room, add `#room1` to `#room8` to the address.
+
+The first room walks you through how everything works. After that, the side panel tells you what to do but not how. Anything new in a room gets a short explanation the first time it turns up. If you're stuck, each goal has a **Hint** button: the first press gives a nudge, and the second shows how it's done.
 
 ## The cats
 
@@ -69,6 +69,8 @@ python3 build.py                        # writes index.html
 ```
 
 The rooms are defined in the `ROOMS` list in `src/game.html`. One floor tile is 12 units, `x` runs down-right, `z` runs down-left and `y` is up. The cats jump 28 (Moe), 14 (Joe) and 6 (Mr Mews) units high, plus 16 off the pouffe, so heights in the room definitions decide who can reach what.
+
+Each room's `rules` are the "New in this room" lines. Each of its `goals` has `text` (the objective shown in the panel) and a `done` test. It can also have a `nudge` and a `hint`, which are the first and second presses of its Hint button.
 
 ## Tests
 

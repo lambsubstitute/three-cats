@@ -82,8 +82,17 @@ aside { display: grid; gap: 16px; min-width: 0; }
 ol.goals { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 8px; }
 ol.goals li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; font-size: 0.92rem; }
 ol.goals li::before { content: ""; width: 10px; height: 10px; margin-top: 5px; border: 2px solid var(--muted); }
-ol.goals li.done { color: var(--muted); text-decoration: line-through; }
+ol.goals li.done { color: var(--muted); }
+ol.goals li.done .gtext { text-decoration: line-through; }
 ol.goals li.done::before { background: var(--good); border-color: var(--good); }
+ol.goals li.done .clue-btn { display: none; }
+.goal { display: grid; gap: 6px; justify-items: start; min-width: 0; }
+.clue { margin: 0; font-size: 0.86rem; color: var(--muted); border-left: 2px solid var(--ginger); padding-left: 8px; }
+.clue-btn { font-family: var(--font-body); font-size: 0.8rem; padding: 2px 10px; color: var(--muted); }
+.clue-btn:hover { color: var(--fg); }
+.rules { display: grid; gap: 6px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 4px; }
+.rules .label { color: var(--ginger); }
+.rules p { margin: 0; font-size: 0.88rem; }
 .keys { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; font-size: 0.9rem; color: var(--muted); }
 kbd { font-family: var(--font-display); color: var(--fg); background: #0d0a15; border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; }
 .touch { display: none; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
@@ -155,6 +164,7 @@ kbd { font-family: var(--font-display); color: var(--fg); background: #0d0a15; b
       <div class="panel">
         <div class="panel-head"><span class="label" id="roomLabel">This room</span><span class="tally" id="tally">Fish 0</span></div>
         <button type="button" id="restart">Restart room</button>
+        <div class="rules" id="rules" hidden></div>
         <ol class="goals" id="goals"></ol>
       </div>
       <div class="panel">
@@ -276,10 +286,14 @@ const ROOMS = [
     water: { x0: 60, x1: 84, z0: 0, z1: 96 },
     dog: { x: 14, z: 46, r: 26, lo: [3, 0, 39], hi: [25, 8, 53] },
     gateOpen: S => S.unlocked,
+    rules: [
+      "Cats won't set a paw in water. A crate pushed in sinks and becomes a stepping stone.",
+      "Dogs sleep lightly. A noisy cat nearby wakes them, and an awake dog chases cats off.",
+    ],
     goals: [
-      { text: "Build a bridge. Cats won't touch water, so Mr Mews pushes crates into the channel, where they sink into stepping stones. Two in a row gets everyone across.", done: S => bridgeDone(S) },
-      { text: "Fetch the key from beside the sleeping dog. Moe and Mr Mews are too noisy and will wake it. Quiet Joe can sneak in.", done: S => S.items.some(it => it.type === "key" && (it.by || it.used)) },
-      { text: "Get the fish off the tall cupboard. It's too high even for Moe, but she can jump from Mr Mews's back.", done: hasFish },
+      { text: "Get across the water.", nudge: "Crates sink where they go in, so line them up to make a path.", hint: "Build a bridge. Cats won't touch water, so Mr Mews pushes crates into the channel, where they sink into stepping stones. Two in a row gets everyone across.", done: S => bridgeDone(S) },
+      { text: "Fetch the key from beside the sleeping dog.", nudge: "Only one of the cats is quiet enough to get close.", hint: "Moe and Mr Mews are too noisy and will wake it. Quiet Joe can sneak in.", done: S => S.items.some(it => it.type === "key" && (it.by || it.used)) },
+      { text: "Get the fish off the tall cupboard.", nudge: "It's too high for Moe from the floor. What could she jump from?", hint: "It's too high even for Moe, but she can jump from Mr Mews's back.", done: hasFish },
       { text: "Bring the key to the gate, then walk all three cats out.", done: allOut },
     ],
   },
@@ -301,10 +315,14 @@ const ROOMS = [
     start: { ginger: [10, 87, 6], smoke: [24, 89, 6], tom: [66, 88, 6] },
     vac: { x0: 7, x1: 113, z: 54, r: 7, start: 30, speed: 0.8 },
     gateOpen: S => S.latched,
+    rules: [
+      "The robot hoover trundles up and down, and shoos away any cat it bumps into.",
+      "Blue pads only need a light touch. Any cat can press one.",
+    ],
     goals: [
-      { text: "Get past the robot hoover. It trundles up and down the middle of the room and shoos away any cat it bumps into. A crate in its lane turns it round.", done: S => S.crossed },
-      { text: "Press both blue pads at the same time. One is up on the shelf, which Moe can reach from the washing machine. The other is in the hoover's lane. A crate can hold a pad down too.", done: S => S.latched },
-      { text: "Get the fish off the boiler. It's the tallest perch yet, so build a cat tower: Mr Mews at the bottom, Joe on his back, then Moe on top.", done: hasFish },
+      { text: "Get past the robot hoover.", nudge: "Something solid in its lane would turn it round.", hint: "A crate in its lane turns it round. Mr Mews can push one in.", done: S => S.crossed },
+      { text: "Press both blue pads at the same time.", nudge: "You don't need a cat on each pad. Something heavy can hold one down.", hint: "One is up on the shelf, which Moe can reach from the washing machine. The other is in the hoover's lane. A crate can hold a pad down too.", done: S => S.latched },
+      { text: "Get the fish off the boiler.", nudge: "Two cats stacked won't reach. How about three?", hint: "It's the tallest perch yet, so build a cat tower: Mr Mews at the bottom, Joe on his back, then Moe on top.", done: hasFish },
       { text: "Walk all three cats out through the door.", done: allOut },
     ],
   },
@@ -322,10 +340,14 @@ const ROOMS = [
     crates: [{ x: 48, y: 0, z: 60, kind: "pouffe" }],
     start: { ginger: [100, 84, 6], smoke: [88, 88, 6], tom: [74, 84, 6] },
     gateOpen: S => S.latched,
+    rules: [
+      "Pouffes are springy. Any cat that jumps off one bounces much higher.",
+      "Mr Mews can push or pull a pouffe, just like a crate.",
+    ],
     goals: [
-      { text: "Get the fish off the wardrobe. It's too high to jump from the floor, but the pouffe is springy: any cat that jumps off it bounces much higher. Mr Mews can push it, or pull it with Shift.", done: hasFish },
-      { text: "Bounce Mr Mews up onto the landing and sit him on the red plate. His weight locks the gate open.", done: S => S.latched },
-      { text: "Get Moe and Joe up there too, then everyone out through the door.", done: allOut },
+      { text: "Get the fish off the wardrobe.", nudge: "It's too high from the floor. Where would the pouffe be most use?", hint: "Mr Mews moves the pouffe up against the wardrobe, then Moe hops on and bounces up to the fish.", done: hasFish },
+      { text: "Lock the gate open.", nudge: "The red plate up on the landing needs a heavy cat.", hint: "Bounce Mr Mews up onto the landing and sit him on the red plate. His weight locks the gate open.", done: S => S.latched },
+      { text: "Get all three cats out through the door on the landing.", nudge: "Moe and Joe can use the pouffe too.", hint: "Get Moe and Joe up there too, then everyone out through the door.", done: allOut },
     ],
   },
   {
@@ -343,10 +365,15 @@ const ROOMS = [
     cord: { x: 78, z: 18, y: 27 },
     start: { ginger: [78, 76, 6], smoke: [90, 76, 6], tom: [84, 88, 6] },
     gateOpen: S => S.lights,
+    rules: [
+      "In the dark, each cat only sees a little way. Joe sees furthest.",
+      "Mind the coal holes. A cat that falls in scrambles back out, but a crate pushed in fills the hole for good.",
+      "Jump up to a light cord to pull it.",
+    ],
     goals: [
-      { text: "It's pitch dark and the floor is full of coal holes. Find the light cord at the back and pull it. It hangs too high for Joe, but Moe can jump for it. Joe sees furthest in the dark.", done: S => S.lights },
-      { text: "Get the fish off the wine rack. Moe can get up there from the barrel.", done: hasFish },
-      { text: "Mr Mews can't jump the holes. Push the crate into the one hole that blocks his way to the door.", done: S => S.filled.length > 0 },
+      { text: "Turn the lights on.", nudge: "The cord hangs somewhere at the back of the room, quite high up.", hint: "Find the light cord at the back and pull it. It hangs too high for Joe, but Moe can jump for it.", done: S => S.lights },
+      { text: "Get the fish off the wine rack.", nudge: "Look for something beside it to jump from.", hint: "Moe can get up there from the barrel.", done: hasFish },
+      { text: "Clear a way to the door for Mr Mews.", nudge: "He can't jump the holes, but he only needs one of them filled.", hint: "Push the crate into the one hole that blocks his way to the door.", done: S => S.filled.length > 0 },
       { text: "Walk all three cats out through the door.", done: allOut },
     ],
   },
@@ -365,9 +392,12 @@ const ROOMS = [
     crates: [],
     start: { ginger: [30, 86, 6], smoke: [42, 88, 6], tom: [56, 86, 6] },
     gateOpen: S => !!(S.plates && S.plates[0]),
+    rules: [
+      "Walk into a ball of wool and it rolls, and keeps rolling until it hits something.",
+    ],
     goals: [
-      { text: "Roll the ball of wool onto the blue pad. Walk into it and it rolls until it hits something, and a cat standing in the way makes a good wall.", done: S => (S.balls || []).some(b => !b.vx && !b.vz && b.x > 12 && b.x < 24 && b.z > 60 && b.z < 72) },
-      { text: "Get the fish off the fridge. Moe can get there from the worktop.", done: hasFish },
+      { text: "Roll the ball of wool onto the blue pad.", nudge: "It won't stop on the pad by itself. What could stop it there?", hint: "A cat standing in the way makes a good wall, and the wool needs two stops. First roll it up into the pad's row with a cat waiting to stop it there, then roll it along the row with another cat standing just past the pad.", done: S => (S.balls || []).some(b => !b.vx && !b.vz && b.x > 12 && b.x < 24 && b.z > 60 && b.z < 72) },
+      { text: "Get the fish off the fridge.", nudge: "Something next to the fridge makes a good step.", hint: "Moe can get there from the worktop.", done: hasFish },
       { text: "Walk all three cats out while the wool holds the pad down.", done: allOut },
     ],
   },
@@ -387,10 +417,13 @@ const ROOMS = [
     crates: [[108, 0, 84]],
     start: { ginger: [24, 86, 6], smoke: [36, 89, 6], tom: [50, 84, 6] },
     gateOpen: () => true,
+    rules: [
+      "The lift rises while something holds its blue pad down, and sinks again when it's let go.",
+    ],
     goals: [
-      { text: "Ride the lift up to the gallery. It rises while someone holds the blue pad down, so Moe can send Mr Mews up, with Joe on his back.", done: S => S.cats.tom.out || S.cats.tom.y >= 29 },
-      { text: "Moe can't jump all the way up on her own. Get her a crate to jump from. It's wedged in the corner, so Mr Mews will have to pull it out first (Shift).", done: S => S.cats.ginger.out || S.cats.ginger.y >= 29 },
-      { text: "Get the fish off the top of the plant shelf. Moe can reach it from the gallery.", done: hasFish },
+      { text: "Get Mr Mews up to the gallery.", nudge: "Somebody has to stay behind on the pad while he rides up.", hint: "Ride the lift up. It rises while someone holds the blue pad down, so Moe can send Mr Mews up, with Joe on his back.", done: S => S.cats.tom.out || S.cats.tom.y >= 29 },
+      { text: "Get Moe up to the gallery.", nudge: "She can't jump it from the floor. Is there anything she could jump from?", hint: "Get her a crate to jump from. It's wedged in the corner, so Mr Mews will have to pull it out first (Shift).", done: S => S.cats.ginger.out || S.cats.ginger.y >= 29 },
+      { text: "Get the fish off the top of the plant shelf.", nudge: "Try it from somewhere higher up.", hint: "Moe can reach it from the gallery.", done: hasFish },
       { text: "Everyone out through the door at the top.", done: allOut },
     ],
   },
@@ -410,10 +443,10 @@ const ROOMS = [
     start: { ginger: [8, 84, 6], smoke: [20, 90, 6], tom: [48, 86, 6] },
     gateOpen: S => S.unlocked,
     goals: [
-      { text: "Fetch the key from beside the sleeping dog. As before, only Joe is quiet enough.", done: S => S.items.some(it => it.type === "key" && (it.by || it.used)) },
-      { text: "Get the fish off the pile of boxes, across the robot hoover's lane. It's too high for Moe alone: use the springy pouffe, or a cat tower.", done: hasFish },
-      { text: "Get everyone up onto the loft. Moe can jump it, Mr Mews needs the pouffe, and Joe can hop off Mr Mews's back.", done: S => ORDER.every(k => S.cats[k].out || (Math.abs(S.cats[k].y - 20) < 1 && S.cats[k].x < 36 && S.cats[k].z < 48)) },
-      { text: "Joe unlocks the gate with the key, then everyone out.", done: allOut },
+      { text: "Fetch the key from beside the sleeping dog.", nudge: "Same trick as in the scullery.", hint: "As before, only Joe is quiet enough.", done: S => S.items.some(it => it.type === "key" && (it.by || it.used)) },
+      { text: "Get the fish off the pile of boxes.", nudge: "It's across the hoover's lane, and too high for Moe on her own.", hint: "Get across the robot hoover's lane. It's too high for Moe alone: use the springy pouffe, or a cat tower.", done: hasFish },
+      { text: "Get everyone up onto the loft.", nudge: "Each cat gets up a different way.", hint: "Moe can jump it, Mr Mews needs the pouffe, and Joe can hop off Mr Mews's back.", done: S => ORDER.every(k => S.cats[k].out || (Math.abs(S.cats[k].y - 20) < 1 && S.cats[k].x < 36 && S.cats[k].z < 48)) },
+      { text: "Bring the key to the gate, then everyone out.", done: allOut },
     ],
   },
 ];
@@ -1400,11 +1433,46 @@ function renderPanel() {
     portraits[k].querySelector(".ab").textContent = S.cats[k].out ? "Out through the door." : CATS[k].ability;
   }
 }
-const goalsEl = document.getElementById("goals");
+const goalsEl = document.getElementById("goals"), rulesEl = document.getElementById("rules");
 let goalEls = [];
+// how far each goal's hint has been opened (0 shut, 1 nudge, 2 full answer); survives restarts
+const clueLevel = {};
 function renderGoals() {
+  rulesEl.innerHTML = "";
+  rulesEl.hidden = !(RM.rules && RM.rules.length);
+  if (!rulesEl.hidden) {
+    const h = document.createElement("div"); h.className = "label"; h.textContent = "New in this room";
+    rulesEl.appendChild(h);
+    for (const r of RM.rules) { const p = document.createElement("p"); p.textContent = r; rulesEl.appendChild(p); }
+  }
   goalsEl.innerHTML = "";
-  goalEls = RM.goals.map(g => { const li = document.createElement("li"); li.textContent = g.text; goalsEl.appendChild(li); return li; });
+  goalEls = RM.goals.map((g, i) => {
+    const li = document.createElement("li"), body = document.createElement("div"), t = document.createElement("span");
+    body.className = "goal"; t.className = "gtext"; t.textContent = g.text; body.appendChild(t);
+    if (g.hint) {
+      const key = S.room + ":" + i, clue = document.createElement("p"), btn = document.createElement("button");
+      clue.className = "clue"; clue.setAttribute("aria-live", "polite");
+      btn.type = "button"; btn.className = "clue-btn";
+      const show = () => {
+        const lv = clueLevel[key] || 0;
+        clue.hidden = lv === 0;
+        clue.textContent = lv === 1 ? g.nudge : lv === 2 ? g.hint : "";
+        btn.hidden = lv >= 2;
+        btn.textContent = lv === 0 ? "Hint" : "Show me how";
+        btn.setAttribute("aria-label", (lv === 0 ? "Hint: " : "Show me how: ") + g.text);
+      };
+      btn.addEventListener("click", e => {
+        const lv = clueLevel[key] || 0;
+        clueLevel[key] = lv === 0 && g.nudge ? 1 : 2;
+        show();
+        // a mouse click hands the keys straight back to the game; a keyboard press stays on the button
+        if (e.detail > 0 || btn.hidden) cv.focus({ preventScroll: true });
+      });
+      show();
+      body.append(clue, btn);
+    }
+    li.appendChild(body); goalsEl.appendChild(li); return li;
+  });
 }
 function updateGoals() {
   RM.goals.forEach((g, i) => goalEls[i].classList.toggle("done", !!g.done(S)));
@@ -1464,6 +1532,7 @@ function showTitle() {
 function titlePrimary() { startGame(!!loadProgress()); }
 function startGame(fromSave) {
   SFX.unlock();
+  if (!fromSave) for (const k in clueLevel) delete clueLevel[k];
   const sv = fromSave ? loadProgress() : null;
   S = sv ? freshRoom(sv.room, sv.fish || 0) : freshRoom(0, 0);
   mode = "play";
